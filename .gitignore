@@ -1,0 +1,18 @@
+# Build output
+target/
+*.class
+*.jar
+*.war
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+.DS_Store
+
+# !! NEVER COMMIT REAL CREDENTIALS !!
+src/main/resources/application-local.properties
+
+# Docker local volumes
+docker/data/
