@@ -23,8 +23,8 @@ Java 17 · Spring Boot 3.2 · Spring Security · Spring Data JPA · MySQL · Mav
 
 ### Step 1 — Clone the repo
 ```bash
-git clone https://github.com/YOUR_REPO_URL.git
-cd system
+git clone https://github.com/AditiShankar3/Airline-management-system.git
+cd Airline-management-system
 ```
 
 ### Step 2 — Add DB credentials
