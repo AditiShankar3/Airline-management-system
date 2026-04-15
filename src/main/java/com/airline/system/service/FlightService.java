@@ -42,7 +42,10 @@ public class FlightService {
     }
 
     public List<Flight> getFlightsBetween(LocalDate from, LocalDate to) {
-        return flightRepository.findBySourceAndDestinationAndDepartureTimeBetween(
-            null, null, from.atStartOfDay(), to.atTime(23, 59));
+        return flightRepository.findAll().stream()
+            .filter(f -> f.getDepartureTime() != null
+                && !f.getDepartureTime().toLocalDate().isBefore(from)
+                && !f.getDepartureTime().toLocalDate().isAfter(to))
+            .toList();
     }
 }

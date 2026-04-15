@@ -1,6 +1,8 @@
 package com.airline.system.model;
 
 import com.airline.system.enums.FlightStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -29,7 +31,7 @@ public class Flight {
 
     @Enumerated(EnumType.STRING)
     private FlightStatus status = FlightStatus.SCHEDULED;
-
+    @JsonIgnore
     @OneToMany(mappedBy = "flight", cascade = CascadeType.ALL)
     private List<Seat> seats = new ArrayList<>();
 }

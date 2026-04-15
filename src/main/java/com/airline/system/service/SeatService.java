@@ -32,7 +32,14 @@ public class SeatService {
     }
 
     public boolean hasAvailableSeats(String flightId, int requiredCount) {
-        return seatRepository.findByFlightFlightIdAndIsAvailableTrue(flightId).size() >= requiredCount;
+        List<Seat> availableSeats = seatRepository.findByFlightFlightIdAndIsAvailableTrue(flightId);
+        if (!availableSeats.isEmpty()) {
+            return availableSeats.size() >= requiredCount;
+        }
+        // Fallback: use flight-level counter for simple demo flow
+        return flightRepository.findById(flightId)
+            .map(f -> f.getAvailableSeats() >= requiredCount)
+            .orElse(false);
     }
 
     public void decrementAvailableSeats(String flightId, int count) {
@@ -48,4 +55,5 @@ public class SeatService {
             flightRepository.save(flight);
         });
     }
+    
 }

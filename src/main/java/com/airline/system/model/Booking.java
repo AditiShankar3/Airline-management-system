@@ -2,6 +2,8 @@ package com.airline.system.model;
 
 import com.airline.system.enums.BookingStatus;
 import com.airline.system.enums.SeatType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -30,7 +32,7 @@ public class Booking {
     private SeatType seatType;
 
     private String pnr;
-
+    @JsonIgnore
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL)
     private List<Ticket> tickets;
 }

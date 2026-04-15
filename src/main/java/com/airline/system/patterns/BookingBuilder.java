@@ -14,33 +14,25 @@ import java.util.UUID;
  * constructor is needed. Builder lets each step of the booking flow add one
  * field at a time before calling build().
  */
-public class BookingBuilder {
-
+public class BookingBuilder 
+{
     private String flightId;
     private String passengerId;
     private SeatType seatType;
     private int numPassengers;
-
+    private LocalDateTime bookingDate;
     public BookingBuilder withFlight(String flightId) {
-        this.flightId = flightId;
-        return this;
+        this.flightId = flightId; return this;
     }
-
     public BookingBuilder withPassenger(String passengerId) {
-        this.passengerId = passengerId;
-        return this;
+        this.passengerId = passengerId; return this;
     }
-
     public BookingBuilder withSeatType(SeatType seatType) {
-        this.seatType = seatType;
-        return this;
+        this.seatType = seatType; return this;
     }
-
     public BookingBuilder withPassengerCount(int count) {
-        this.numPassengers = count;
-        return this;
+        this.numPassengers = count; return this;
     }
-
     public Booking build() {
         Booking b = new Booking();
         b.setFlightId(flightId);
@@ -52,7 +44,6 @@ public class BookingBuilder {
         b.setPnr(generatePNR());
         return b;
     }
-
     private String generatePNR() {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
