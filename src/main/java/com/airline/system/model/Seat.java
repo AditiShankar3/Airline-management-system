@@ -20,6 +20,7 @@ public class Seat {
 
     private boolean isAvailable = true;
     private int row;
+    @Column(name = "seat_column")
     private char column;
     private double price;
 
