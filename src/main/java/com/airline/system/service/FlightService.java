@@ -1,6 +1,8 @@
 package com.airline.system.service;
 
 import com.airline.system.model.Flight;
+import com.airline.system.model.FlightRequest;
+import com.airline.system.patterns.FlightFactory;
 import com.airline.system.repository.FlightRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -17,7 +19,13 @@ public class FlightService {
         this.flightRepository = flightRepository;
     }
 
-    public Flight addFlight(Flight flight) {
+    /**
+     * Factory Pattern entry-point.
+     * Delegates object construction to FlightFactory so the service never
+     * calls {@code new Flight()} directly and remains unaware of type rules.
+     */
+    public Flight addFlight(FlightRequest request) {
+        Flight flight = FlightFactory.createFlight(request);
         return flightRepository.save(flight);
     }
 
@@ -49,3 +57,4 @@ public class FlightService {
             .toList();
     }
 }
+

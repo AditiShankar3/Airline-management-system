@@ -1,6 +1,7 @@
 package com.airline.system.controller;
 
 import com.airline.system.model.Flight;
+import com.airline.system.model.FlightRequest;
 import com.airline.system.service.FlightService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,19 +27,24 @@ public class FlightController {
 
     @GetMapping("/search")
     public List<Flight> searchFlights(@RequestParam String src,
-                                       @RequestParam String dest,
-                                       @RequestParam String date) {
+                                      @RequestParam String dest,
+                                      @RequestParam String date) {
         return flightService.searchFlights(src, dest, LocalDateTime.parse(date));
     }
 
+    /**
+     * Controller only accepts the DTO and delegates to the service.
+     * No Flight object is created here — Factory Pattern responsibility
+     * is fully in FlightFactory via FlightService.
+     */
     @PostMapping
-    public ResponseEntity<Flight> addFlight(@RequestBody Flight flight) {
-        return ResponseEntity.ok(flightService.addFlight(flight));
+    public ResponseEntity<Flight> addFlight(@RequestBody FlightRequest request) {
+        return ResponseEntity.ok(flightService.addFlight(request));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Flight> updateFlight(@PathVariable String id,
-                                                @RequestBody Flight details) {
+                                               @RequestBody Flight details) {
         return ResponseEntity.ok(flightService.updateFlight(id, details));
     }
 
@@ -48,3 +54,4 @@ public class FlightController {
         return ResponseEntity.ok("Flight deleted");
     }
 }
+
