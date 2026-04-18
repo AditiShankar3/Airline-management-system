@@ -124,9 +124,9 @@
 <!-- LOGIN PAGE -->
 <div class="page active" id="loginPage">
   <div class="login-wrap">
-    <div class="card">
+    <div class="card" id="loginCard">
       <p class="login-title">Welcome back</p>
-      <p class="login-sub">Sign in to your account or register below</p>
+      <p class="login-sub">Sign in to your account</p>
 
       <div class="role-pills">
         <button class="role-pill active" onclick="selectRole('PASSENGER', this)">Passenger</button>
@@ -144,11 +144,22 @@
       </div>
       <div class="btn-row">
         <button class="btn" onclick="doLogin()">Sign in</button>
-        <button class="btn secondary" onclick="doRegister()">Register</button>
+        <button class="btn secondary" onclick="showRegisterForm()">Create account</button>
       </div>
+    </div>
 
-      <hr>
-      <p style="font-size:12px; color:#aaa; text-align:center">Demo: register any username/password to get started</p>
+    <!-- Register form (hidden by default) -->
+    <div class="card" id="registerCard" style="display:none; margin-top:16px">
+      <p class="login-title" style="font-size:16px">Create account</p>
+      <p class="login-sub" style="margin-bottom:12px">Registering as: <strong id="registerRoleLabel">Passenger</strong></p>
+      <div class="field"><label>Username</label><input type="text" id="regUsername" placeholder="Choose a username" /></div>
+      <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="your@email.com" /></div>
+      <div class="field"><label>Phone</label><input type="tel" id="regPhone" placeholder="+91 9876543210" /></div>
+      <div class="field"><label>Password</label><input type="password" id="regPassword" placeholder="Choose a password" /></div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn" onclick="doRegister()">Register</button>
+        <button class="btn secondary" onclick="hideRegisterForm()">Cancel</button>
+      </div>
     </div>
   </div>
 </div>
@@ -286,6 +297,15 @@
       <div class="field"><label>Total seats</label><input type="number" id="fTotalSeats" placeholder="180" /></div>
       <div class="field"><label>Available seats</label><input type="number" id="fAvailSeats" placeholder="180" /></div>
     </div>
+    <div class="form-row single">
+      <div class="field">
+        <label>Flight type</label>
+        <select id="fType">
+          <option value="DOMESTIC">Domestic</option>
+          <option value="INTERNATIONAL">International</option>
+        </select>
+      </div>
+    </div>
     <div class="btn-row">
       <button class="btn success" onclick="addFlight()">Add flight</button>
     </div>
@@ -359,6 +379,8 @@ function selectRole(role, el) {
   selectedRole = role;
   document.querySelectorAll('.role-pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
+  const label = document.getElementById('registerRoleLabel');
+  if (label) label.textContent = role.charAt(0) + role.slice(1).toLowerCase();
 }
 
 async function api(method, path, body) {
@@ -416,14 +438,32 @@ function showPage(name) {
   if (name === 'admin') loadUsers();
 }
 
+function showRegisterForm() {
+  document.getElementById('registerCard').style.display = 'block';
+  document.getElementById('registerRoleLabel').textContent =
+    selectedRole.charAt(0) + selectedRole.slice(1).toLowerCase();
+  document.getElementById('regUsername').focus();
+}
+function hideRegisterForm() {
+  document.getElementById('registerCard').style.display = 'none';
+  ['regUsername','regEmail','regPhone','regPassword'].forEach(id =>
+    (document.getElementById(id).value = ''));
+}
 async function doRegister() {
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
-  if (!username || !password) return toast('Enter username and password', 'error');
+  const username = document.getElementById('regUsername').value.trim();
+  const email    = document.getElementById('regEmail').value.trim();
+  const phone    = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPassword').value.trim();
+  if (!username || !email || !password)
+    return toast('Username, email and password are required', 'error');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return toast('Please enter a valid email address', 'error');
   try {
-    await api('POST', '/api/auth/register', { username, password, email: username + '@demo.com', role: selectedRole });
-    toast('Registered! Logging in...', 'success');
-    setTimeout(doLogin, 800);
+    await api('POST', '/api/auth/register', { username, email, phone, password, role: selectedRole });
+    toast('Account created! Please sign in.', 'success');
+    hideRegisterForm();
+    document.getElementById('loginUsername').value = username;
+    document.getElementById('loginPassword').value = password;
   } catch (e) { toast(e.message, 'error'); }
 }
 async function doLogin() {
@@ -436,7 +476,9 @@ async function doLogin() {
   }
 
   try {
-    const res = await api('POST', '/api/auth/login', { username, password });
+    // Fix: send role so backend can do username+role lookup (avoids NonUniqueResultException
+    // when the same username exists under multiple roles in the DB).
+    const res = await api('POST', '/api/auth/login', { username, password, role: selectedRole });
 
     currentUser = {
       userId: res.userId,
@@ -598,87 +640,134 @@ function updateSeatSelectionLimit() {
 
 async function loadSeatMap() {
   const seatType = document.getElementById('bookSeatType').value;
+  const grid = document.getElementById('seatMapGrid');
   document.getElementById('seatMapLoading').style.display = 'block';
-  document.getElementById('seatMapGrid').innerHTML = '';
+  grid.innerHTML = '';
   document.getElementById('selectedSeatNums').textContent = 'None';
   selectedSeatIds = [];
 
   try {
-    const seats = await api('GET', `/api/seats/${bookingFlightId}/type?seatType=${seatType}`);
-    const allSeats = await api('GET', `/api/seats/${bookingFlightId}`);
+    // Use /all so we get taken seats too — needed to grey them out
+    const allSeats = await api('GET', `/api/seats/${bookingFlightId}/all`);
     document.getElementById('seatMapLoading').style.display = 'none';
 
     if (!allSeats || allSeats.length === 0) {
-      document.getElementById('seatMapGrid').innerHTML = '<p style="font-size:13px;color:#aaa">No seat map available for this flight. You can still book — seats will be auto-assigned.</p>';
+      grid.innerHTML = '<p style="font-size:13px;color:#aaa;padding:8px 0">No seat data yet — seats will be auto-assigned on booking.</p>';
       return;
     }
 
-    // Group all seats (available + taken) by row, filter by type
+    // Filter to chosen class
     const typeSeats = allSeats.filter(s => s.seatType === seatType);
-    if (typeSeats.length === 0) {
-      document.getElementById('seatMapGrid').innerHTML = '<p style="font-size:13px;color:#aaa">No seats in this class.</p>';
+    if (!typeSeats.length) {
+      grid.innerHTML = '<p style="font-size:13px;color:#aaa;padding:8px 0">No seats in this class.</p>';
       return;
     }
 
-    // Build a set of available seat IDs for quick lookup
-    const availableIds = new Set(seats.map(s => s.seatId));
-
-    // Render grid: columns = unique seatColumn letters, rows = seat numbers
+    // Determine unique sorted rows and columns
+    const rows = [...new Set(typeSeats.map(s => s.row))].sort((a, b) => a - b);
     const cols = [...new Set(typeSeats.map(s => s.seatColumn))].sort();
-    const rows = [...new Set(typeSeats.map(s => s.row))].sort((a,b)=>a-b);
 
-    // Build lookup map
-    const seatMap = {};
-    typeSeats.forEach(s => { seatMap[`${s.row}-${s.seatColumn}`] = s; });
+    // Class colours
+    const classColour = { ECONOMY: '#2563eb', BUSINESS: '#7c3aed', FIRST_CLASS: '#b45309' };
+    const classBg     = { ECONOMY: '#eff6ff', BUSINESS: '#f5f3ff', FIRST_CLASS: '#fffbeb' };
+    const classBorder = { ECONOMY: '#bfdbfe', BUSINESS: '#ddd6fe', FIRST_CLASS: '#fde68a' };
+    const c  = classColour[seatType] || '#2563eb';
+    const bg = classBg[seatType]     || '#eff6ff';
+    const bd = classBorder[seatType] || '#bfdbfe';
 
-    const grid = document.getElementById('seatMapGrid');
-    grid.style.gridTemplateColumns = `32px repeat(${cols.length}, 36px)`;
+    // Build lookup by "row-col"
+    const byPos = {};
+    typeSeats.forEach(s => { byPos[`${s.row}-${s.seatColumn}`] = s; });
 
-    // Header row
-    grid.innerHTML += `<div style="font-size:11px;color:#aaa;display:flex;align-items:center;justify-content:center"></div>` +
-      cols.map(c => `<div style="font-size:11px;color:#aaa;text-align:center;font-weight:500">${c}</div>`).join('');
+    // Find the aisle gap: ECONOMY/BUSINESS = after col C | FIRST_CLASS = after col B
+    const aisleAfter = seatType === 'FIRST_CLASS' ? 'B' : 'C';
 
+    // ── Cabin wrapper ────────────────────────────────────────
+    grid.style.display    = 'block';
+    grid.style.overflowX  = 'auto';
+    grid.style.paddingBottom = '8px';
+
+    let html = `
+      <div style="display:inline-block;min-width:320px;font-family:inherit">
+        <!-- nose icon -->
+        <div style="text-align:center;margin-bottom:6px;font-size:22px;color:#94a3b8">✈</div>
+
+        <!-- column header row -->
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;padding-left:32px">`;
+
+    cols.forEach((col, i) => {
+      if (i > 0 && cols[i - 1] === aisleAfter)
+        html += `<div style="width:20px"></div>`;   // aisle gap
+      html += `<div style="width:34px;text-align:center;font-size:11px;font-weight:600;color:#64748b">${col}</div>`;
+    });
+    html += `</div>`;
+
+    // ── Seat rows ────────────────────────────────────────────
     rows.forEach(row => {
-      grid.innerHTML += `<div style="font-size:11px;color:#aaa;display:flex;align-items:center;justify-content:flex-end;padding-right:6px">${row}</div>`;
-      cols.forEach(col => {
-        const seat = seatMap[`${row}-${col}`];
+      html += `<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">`;
+      // row number label
+      html += `<div style="width:28px;text-align:right;font-size:11px;color:#94a3b8;padding-right:4px">${row}</div>`;
+
+      cols.forEach((col, i) => {
+        if (i > 0 && cols[i - 1] === aisleAfter)
+          html += `<div style="width:20px"></div>`;   // aisle gap
+
+        const seat = byPos[`${row}-${col}`];
         if (!seat) {
-          grid.innerHTML += `<div></div>`;
+          html += `<div style="width:34px"></div>`;
           return;
         }
-        const avail = availableIds.has(seat.seatId);
-        const id = `seat-${seat.seatId}`;
-        grid.innerHTML += `
-          <div id="${id}" data-seatid="${seat.seatId}" data-seatnum="${seat.seatNumber}"
-            onclick="${avail ? `toggleSeat('${seat.seatId}','${seat.seatNumber}')` : ''}"
-            style="
-              width:34px;height:30px;border-radius:4px;font-size:11px;
-              display:flex;align-items:center;justify-content:center;
-              cursor:${avail ? 'pointer' : 'default'};
-              border:1px solid ${avail ? '#b3d0f0' : '#ddd'};
-              background:${avail ? '#e6f1fb' : '#eee'};
-              color:${avail ? '#185fa5' : '#bbb'};
-              font-weight:500;transition:all 0.12s;
-            "
-            title="${seat.seatNumber} — ${avail ? 'Available' : 'Taken'}"
+        const avail   = seat.available;
+        const seatBg  = avail ? bg    : '#e2e8f0';
+        const seatBd  = avail ? bd    : '#cbd5e1';
+        const seatCol = avail ? c     : '#94a3b8';
+        const cursor  = avail ? 'pointer' : 'not-allowed';
+        const onclick = avail ? `toggleSeat('${seat.seatId}','${seat.seatNumber}')` : '';
+        const title   = `${seat.seatNumber} — ${avail ? 'Available ₹' + Math.round(seat.price) : 'Taken'}`;
+
+        html += `
+          <div id="seat-${seat.seatId}"
+               data-seatid="${seat.seatId}"
+               data-seatnum="${seat.seatNumber}"
+               data-avail="${avail}"
+               onclick="${onclick}"
+               title="${title}"
+               style="
+                 width:34px;height:32px;border-radius:6px 6px 4px 4px;
+                 font-size:10px;font-weight:600;
+                 display:flex;align-items:center;justify-content:center;
+                 cursor:${cursor};
+                 border:1.5px solid ${seatBd};
+                 background:${seatBg};
+                 color:${seatCol};
+                 box-shadow:${avail ? '0 1px 3px rgba(0,0,0,.08)' : 'none'};
+                 transition:all .12s;
+                 position:relative;
+               "
           >${seat.seatNumber}</div>`;
       });
+
+      html += `</div>`;  // end row
     });
+
+    html += `</div>`;  // end cabin wrapper
+    grid.innerHTML = html;
 
   } catch (e) {
     document.getElementById('seatMapLoading').style.display = 'none';
-    document.getElementById('seatMapGrid').innerHTML = '<p style="font-size:13px;color:#aaa">Seat map unavailable — seats will be auto-assigned on booking.</p>';
+    grid.innerHTML = '<p style="font-size:13px;color:#aaa;padding:8px 0">Could not load seat map.</p>';
+    console.error(e);
   }
 }
 
 function toggleSeat(seatId, seatNum) {
   const limit = parseInt(document.getElementById('bookCount').value) || 1;
-  const idx = selectedSeatIds.indexOf(seatId);
+  const idx   = selectedSeatIds.indexOf(seatId);
   if (idx >= 0) {
     selectedSeatIds.splice(idx, 1);
   } else {
     if (selectedSeatIds.length >= limit) {
-      toast(`You can only select ${limit} seat(s) for ${limit} passenger(s)`, 'error');
+      toast(`Select exactly ${limit} seat(s) — one per passenger`, 'error');
       return;
     }
     selectedSeatIds.push(seatId);
@@ -687,18 +776,24 @@ function toggleSeat(seatId, seatNum) {
 }
 
 function refreshSeatMapSelection() {
-  // Reset all available seats to default style
+  const seatType  = document.getElementById('bookSeatType').value;
+  const classColour = { ECONOMY: '#2563eb', BUSINESS: '#7c3aed', FIRST_CLASS: '#b45309' };
+  const classBg     = { ECONOMY: '#eff6ff', BUSINESS: '#f5f3ff', FIRST_CLASS: '#fffbeb' };
+  const classBorder = { ECONOMY: '#bfdbfe', BUSINESS: '#ddd6fe', FIRST_CLASS: '#fde68a' };
+  const c  = classColour[seatType] || '#2563eb';
+  const bg = classBg[seatType]     || '#eff6ff';
+  const bd = classBorder[seatType] || '#bfdbfe';
+
   document.querySelectorAll('[data-seatid]').forEach(el => {
-    const sid = el.dataset.seatid;
-    const isSelected = selectedSeatIds.includes(sid);
-    // Only restyle if it's available (blue tint) or selected (black)
-    if (el.style.background !== 'rgb(238, 238, 238)') { // not taken
-      el.style.background = isSelected ? '#1a1a1a' : '#e6f1fb';
-      el.style.color = isSelected ? '#fff' : '#185fa5';
-      el.style.borderColor = isSelected ? '#1a1a1a' : '#b3d0f0';
-    }
+    if (el.dataset.avail !== 'true') return;   // leave taken seats alone
+    const isSelected = selectedSeatIds.includes(el.dataset.seatid);
+    el.style.background   = isSelected ? '#1e293b' : bg;
+    el.style.color        = isSelected ? '#f8fafc'  : c;
+    el.style.borderColor  = isSelected ? '#0f172a'  : bd;
+    el.style.boxShadow    = isSelected ? '0 0 0 2px #0f172a40' : '0 1px 3px rgba(0,0,0,.08)';
+    el.style.transform    = isSelected ? 'scale(1.08)' : 'scale(1)';
   });
-  // Show selected seat numbers
+
   const nums = selectedSeatIds.map(id => {
     const el = document.querySelector(`[data-seatid="${id}"]`);
     return el ? el.dataset.seatnum : id;
@@ -791,8 +886,9 @@ async function addFlight() {
     basePrice: parseFloat(document.getElementById('fPrice').value) || 0,
     totalSeats: parseInt(document.getElementById('fTotalSeats').value) || 0,
     availableSeats: parseInt(document.getElementById('fAvailSeats').value) || 0,
-    status: 'SCHEDULED'
-  };
+    status: 'SCHEDULED',
+    type: document.getElementById('fType').value   // ← ADD THIS LINE
+};
   if (!body.flightNumber || !body.source || !body.destination || !body.departureTime) {
     toast('Fill in all required fields', 'error'); return;
   }

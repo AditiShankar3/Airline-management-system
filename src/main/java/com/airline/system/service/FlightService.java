@@ -1,15 +1,18 @@
 package com.airline.system.service;
 
 import com.airline.system.enums.BookingStatus;
+import com.airline.system.enums.SeatType;
 import com.airline.system.model.Booking;
 import com.airline.system.model.Flight;
 import com.airline.system.model.FlightRequest;
+import com.airline.system.model.Seat;
 import com.airline.system.patterns.FlightFactory;
 import com.airline.system.repository.BookingRepository;
 import com.airline.system.repository.FlightRepository;
+import com.airline.system.repository.SeatRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Owner: Alekhya (CS053) */
@@ -17,22 +20,74 @@ import java.util.List;
 public class FlightService {
 
     private final FlightRepository flightRepository;
-    private final BookingRepository bookingRepository; // Fix: injected to cancel bookings on delete
+    private final BookingRepository bookingRepository;
+    private final SeatRepository seatRepository;
 
     public FlightService(FlightRepository flightRepository,
-                         BookingRepository bookingRepository) {
+                         BookingRepository bookingRepository,
+                         SeatRepository seatRepository) {
         this.flightRepository = flightRepository;
         this.bookingRepository = bookingRepository;
+        this.seatRepository = seatRepository;
     }
 
     /**
-     * Factory Pattern entry-point.
-     * Delegates object construction to FlightFactory so the service never
-     * calls {@code new Flight()} directly and remains unaware of type rules.
+     * Adds a flight AND auto-seeds its seat map so the seat picker works immediately.
+     * Layout: rows 1–totalSeats/6, columns A–F.
+     *   Rows 1–2         → FIRST_CLASS   (cols A–D, 4 per row)
+     *   Rows 3–(n/3)     → BUSINESS      (cols A–F, 6 per row)
+     *   Remaining rows   → ECONOMY       (cols A–F, 6 per row)
      */
     public Flight addFlight(FlightRequest request) {
         Flight flight = FlightFactory.createFlight(request);
-        return flightRepository.save(flight);
+        Flight saved = flightRepository.save(flight);
+        seedSeats(saved);
+        return saved;
+    }
+
+    private void seedSeats(Flight flight) {
+        int total = flight.getTotalSeats() > 0 ? flight.getTotalSeats() : 180;
+        List<Seat> seats = new ArrayList<>();
+
+        // First class: rows 1–2, cols A-D  (8 seats)
+        for (int row = 1; row <= 2; row++) {
+            for (char col : new char[]{'A','B','C','D'}) {
+                seats.add(makeSeat(flight, row, col, SeatType.FIRST_CLASS));
+            }
+        }
+        // Business: rows 3–(firstClassRows + businessRows), cols A-F
+        int businessRows = Math.max(2, total / 20);
+        for (int row = 3; row < 3 + businessRows; row++) {
+            for (char col : new char[]{'A','B','C','D','E','F'}) {
+                seats.add(makeSeat(flight, row, col, SeatType.BUSINESS));
+            }
+        }
+        // Economy: fill remaining
+        int ecoStart = 3 + businessRows;
+        int ecoRows = Math.max(5, (total - seats.size()) / 6);
+        for (int row = ecoStart; row < ecoStart + ecoRows; row++) {
+            for (char col : new char[]{'A','B','C','D','E','F'}) {
+                seats.add(makeSeat(flight, row, col, SeatType.ECONOMY));
+            }
+        }
+
+        seatRepository.saveAll(seats);
+    }
+
+    private Seat makeSeat(Flight flight, int row, char col, SeatType type) {
+        Seat s = new Seat();
+        s.setSeatNumber(row + String.valueOf(col));
+        s.setRow(row);
+        s.setSeatColumn(col);
+        s.setSeatType(type);
+        s.setAvailable(true);
+        s.setFlight(flight);
+        s.setPrice(switch (type) {
+            case FIRST_CLASS -> flight.getBasePrice() * 3;
+            case BUSINESS    -> flight.getBasePrice() * 1.8;
+            case ECONOMY     -> flight.getBasePrice();
+        });
+        return s;
     }
 
     public Flight updateFlight(String flightId, Flight details) {
@@ -45,24 +100,20 @@ public class FlightService {
         return flightRepository.save(f);
     }
 
-    /**
-     * Fix: Before deleting the flight row, find all active bookings for this
-     * flight and mark them CANCELLED so passengers see the updated status
-     * instead of a dangling booking pointing at a missing flight.
-     */
+    /** Cancel all active bookings before deleting the flight */
     public void deleteFlight(String flightId) {
-        List<Booking> affectedBookings = bookingRepository.findByFlightId(flightId);
-        for (Booking b : affectedBookings) {
+        bookingRepository.findByFlightId(flightId).forEach(b -> {
             if (b.getStatus() != BookingStatus.CANCELLED) {
                 b.setStatus(BookingStatus.CANCELLED);
                 bookingRepository.save(b);
             }
-        }
+        });
+        seatRepository.deleteAll(seatRepository.findByFlightFlightIdAndIsAvailableTrue(flightId));
         flightRepository.deleteById(flightId);
     }
 
-    public List<Flight> searchFlights(String src, String dest, LocalDateTime date) {
-        if (src == null) return flightRepository.findAll();
+    public List<Flight> searchFlights(String src, String dest, java.time.LocalDateTime date) {
+        if (src == null || src.isBlank()) return flightRepository.findAll();
         return flightRepository.findBySourceAndDestinationAndDepartureTimeBetween(
             src, dest, date, date.plusDays(1));
     }

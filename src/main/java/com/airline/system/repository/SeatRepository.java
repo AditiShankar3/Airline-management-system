@@ -9,6 +9,7 @@ import java.util.List;
 /** Owner: Aditi (CS029) */
 @Repository
 public interface SeatRepository extends JpaRepository<Seat, String> {
+    List<Seat> findByFlightFlightId(String flightId);   // all seats (taken + available)
     List<Seat> findByFlightFlightIdAndIsAvailableTrue(String flightId);
     List<Seat> findByFlightFlightIdAndSeatType(String flightId, SeatType seatType);
     List<Seat> findByFlightFlightIdAndSeatTypeAndIsAvailableTrue(String flightId, SeatType seatType);
