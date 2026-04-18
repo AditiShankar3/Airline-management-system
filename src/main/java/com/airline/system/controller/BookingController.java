@@ -1,6 +1,7 @@
 package com.airline.system.controller;
 
 import com.airline.system.model.Booking;
+import com.airline.system.model.BookingDetailDTO;
 import com.airline.system.model.BookingRequest;
 import com.airline.system.service.BookingService;
 import org.springframework.http.ResponseEntity;
@@ -25,13 +26,20 @@ public class BookingController {
             req.getFlightId(),
             req.getPassengerId(),
             req.getSeatType(),
-            req.getPassengerCount());
+            req.getPassengerCount(),
+            req.getSeatIds());      // pass selected seat IDs
         return ResponseEntity.ok(b);
     }
 
     @GetMapping("/passenger/{passengerId}")
     public List<Booking> getHistory(@PathVariable String passengerId) {
         return bookingService.getBookingHistory(passengerId);
+    }
+
+    /** New: enriched booking details with flight + seat info */
+    @GetMapping("/passenger/{passengerId}/details")
+    public List<BookingDetailDTO> getDetails(@PathVariable String passengerId) {
+        return bookingService.getBookingDetails(passengerId);
     }
 
     @PutMapping("/{bookingId}/cancel")
