@@ -1,8 +1,11 @@
 package com.airline.system.service;
 
+import com.airline.system.enums.BookingStatus;
+import com.airline.system.model.Booking;
 import com.airline.system.model.Flight;
 import com.airline.system.model.FlightRequest;
 import com.airline.system.patterns.FlightFactory;
+import com.airline.system.repository.BookingRepository;
 import com.airline.system.repository.FlightRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
@@ -14,9 +17,12 @@ import java.util.List;
 public class FlightService {
 
     private final FlightRepository flightRepository;
+    private final BookingRepository bookingRepository; // Fix: injected to cancel bookings on delete
 
-    public FlightService(FlightRepository flightRepository) {
+    public FlightService(FlightRepository flightRepository,
+                         BookingRepository bookingRepository) {
         this.flightRepository = flightRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     /**
@@ -39,7 +45,19 @@ public class FlightService {
         return flightRepository.save(f);
     }
 
+    /**
+     * Fix: Before deleting the flight row, find all active bookings for this
+     * flight and mark them CANCELLED so passengers see the updated status
+     * instead of a dangling booking pointing at a missing flight.
+     */
     public void deleteFlight(String flightId) {
+        List<Booking> affectedBookings = bookingRepository.findByFlightId(flightId);
+        for (Booking b : affectedBookings) {
+            if (b.getStatus() != BookingStatus.CANCELLED) {
+                b.setStatus(BookingStatus.CANCELLED);
+                bookingRepository.save(b);
+            }
+        }
         flightRepository.deleteById(flightId);
     }
 
@@ -57,4 +75,3 @@ public class FlightService {
             .toList();
     }
 }
-

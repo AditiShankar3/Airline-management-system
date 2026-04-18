@@ -13,4 +13,6 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     List<Booking> findByPassengerId(String passengerId);
     List<Booking> findByStatus(BookingStatus status);
     List<Booking> findByBookingDateBetween(LocalDateTime from, LocalDateTime to);
+    // Fix: needed by FlightService to cancel bookings when a flight is deleted
+    List<Booking> findByFlightId(String flightId);
 }
