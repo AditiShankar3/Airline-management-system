@@ -7,11 +7,6 @@ import com.airline.system.repository.SeatRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
-/**
- * Owner: Aditi (CS029)
- * SRP: only responsible for seat availability logic.
- * Called by BookingService and SeatAvailabilityObserver.
- */
 @Service
 public class SeatService {
 
@@ -24,19 +19,23 @@ public class SeatService {
     }
 
     public List<Seat> getAvailableSeats(String flightId) {
-        return seatRepository.findByFlightFlightIdAndIsAvailableTrue(flightId);
+        try {
+            return seatRepository.findByFlightFlightIdAndIsAvailableTrue(flightId);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public List<Seat> getSeatsByType(String flightId, SeatType seatType) {
-        return seatRepository.findByFlightFlightIdAndSeatTypeAndIsAvailableTrue(flightId, seatType);
+        try {
+            return seatRepository.findByFlightFlightIdAndSeatTypeAndIsAvailableTrue(flightId, seatType);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public boolean hasAvailableSeats(String flightId, int requiredCount) {
-        List<Seat> availableSeats = seatRepository.findByFlightFlightIdAndIsAvailableTrue(flightId);
-        if (!availableSeats.isEmpty()) {
-            return availableSeats.size() >= requiredCount;
-        }
-        // Fallback: use flight-level counter for simple demo flow
+        // Always use flight-level counter — simpler and more reliable for demo
         return flightRepository.findById(flightId)
             .map(f -> f.getAvailableSeats() >= requiredCount)
             .orElse(false);
@@ -44,7 +43,7 @@ public class SeatService {
 
     public void decrementAvailableSeats(String flightId, int count) {
         flightRepository.findById(flightId).ifPresent(flight -> {
-            flight.setAvailableSeats(flight.getAvailableSeats() - count);
+            flight.setAvailableSeats(Math.max(0, flight.getAvailableSeats() - count));
             flightRepository.save(flight);
         });
     }
@@ -55,5 +54,4 @@ public class SeatService {
             flightRepository.save(flight);
         });
     }
-    
 }

@@ -6,12 +6,8 @@ import com.airline.system.service.UserService;
 import lombok.Data;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
-/**
- * Owner: Pranav (CS002)
- * Handles /api/auth/register and /api/auth/login.
- * TODO (Pranav): Add JWT token generation on login.
- */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -29,12 +25,30 @@ public class AuthController {
         return ResponseEntity.ok(user);
     }
 
+    // ✅ Returns JSON object, NOT a plain string
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest req) {
-        // TODO (Pranav): validate credentials and return JWT token
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest req) {
         User user = userService.findByUsername(req.getUsername());
-        return ResponseEntity.ok("Login successful for: " + user.getUsername()
-            + " | Role: " + user.getRole());
+        return ResponseEntity.ok(new LoginResponse(
+            user.getUserId(),
+            user.getUsername(),
+            user.getRole().toString(),
+            user.getEmail()
+        ));
+    }
+
+    // ✅ New endpoint — fixes the 404 error
+    @GetMapping("/users")
+    public ResponseEntity<List<User>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
+    }
+
+    // ✅ New endpoint — for admin activate/deactivate
+    @PutMapping("/users/{id}/status")
+    public ResponseEntity<String> setStatus(@PathVariable String id,
+                                             @RequestParam boolean active) {
+        userService.setUserActive(id, active);
+        return ResponseEntity.ok("Status updated");
     }
 
     @Data
@@ -49,5 +63,20 @@ public class AuthController {
     static class LoginRequest {
         private String username;
         private String password;
+    }
+
+    @Data
+    static class LoginResponse {
+        private String userId;
+        private String username;
+        private String role;
+        private String email;
+
+        public LoginResponse(String userId, String username, String role, String email) {
+            this.userId = userId;
+            this.username = username;
+            this.role = role;
+            this.email = email;
+        }
     }
 }

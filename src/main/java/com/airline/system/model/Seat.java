@@ -4,7 +4,6 @@ import com.airline.system.enums.SeatType;
 import jakarta.persistence.*;
 import lombok.Data;
 
-/** Owner: Aditi (CS029) */
 @Entity
 @Data
 public class Seat {
@@ -19,9 +18,13 @@ public class Seat {
     private SeatType seatType;
 
     private boolean isAvailable = true;
+
+    @Column(name = "seat_row")      // was row_number, now seat_row
     private int row;
+
     @Column(name = "seat_column")
-    private char column;
+    private char seatColumn;
+
     private double price;
 
     @ManyToOne
