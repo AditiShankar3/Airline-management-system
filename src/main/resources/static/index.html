@@ -3,868 +3,1051 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SkyLink — Airline Management</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>Airline Management System</title>
 <style>
-  :root {
-    --bg: #0d0f14;
-    --surface: #151820;
-    --card: #1c2030;
-    --border: #2a3040;
-    --accent: #3b82f6;
-    --accent-dim: rgba(59,130,246,0.12);
-    --green: #22c55e;
-    --red: #ef4444;
-    --yellow: #f59e0b;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --mono: 'IBM Plex Mono', monospace;
-    --sans: 'IBM Plex Sans', sans-serif;
-  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; min-height: 100vh; }
 
-  /* TOAST */
-  #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
-  .toast { padding: 12px 18px; border-radius: 6px; font-size: 13px; font-family: var(--mono); max-width: 340px; animation: slideIn 0.2s ease; border-left: 3px solid; }
-  .toast.success { background: #0f2a1a; border-color: var(--green); color: var(--green); }
-  .toast.error   { background: #2a0f0f; border-color: var(--red);   color: var(--red); }
-  .toast.info    { background: #0f1a2a; border-color: var(--accent); color: var(--accent); }
-  @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  /* NAV */
+  nav { background: #fff; border-bottom: 0.5px solid #ddd; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .nav-brand { font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .nav-brand span { font-size: 20px; }
+  .nav-tabs { display: flex; gap: 4px; }
+  .tab-btn { padding: 6px 16px; border-radius: 20px; border: 0.5px solid transparent; background: transparent; cursor: pointer; font-size: 13px; color: #666; transition: all 0.15s; }
+  .tab-btn:hover { background: #f5f5f0; color: #1a1a1a; }
+  .tab-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .nav-user { font-size: 13px; color: #666; display: flex; align-items: center; gap: 8px; }
+  .user-badge { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+  .user-badge.passenger { background: #e6f1fb; color: #185fa5; }
+  .user-badge.staff { background: #eaf3de; color: #3b6d11; }
+  .user-badge.admin { background: #faeeda; color: #854f0b; }
 
-  /* PORTAL SELECT */
-  #portal-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 48px; padding: 40px; }
-  .portal-header { text-align: center; }
-  .portal-header h1 { font-family: var(--mono); font-size: 32px; letter-spacing: 4px; color: var(--text); margin-bottom: 8px; }
-  .portal-header p  { color: var(--muted); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
-  .portal-grid { display: grid; grid-template-columns: repeat(3, 220px); gap: 16px; }
-  .portal-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 32px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, transform 0.2s; }
-  .portal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .portal-card .icon { font-size: 36px; margin-bottom: 16px; }
-  .portal-card h3 { font-family: var(--mono); font-size: 14px; letter-spacing: 2px; margin-bottom: 8px; }
-  .portal-card p  { color: var(--muted); font-size: 12px; }
-
-  /* AUTH */
-  #auth-screen { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px; }
-  .auth-box { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 40px; width: 100%; max-width: 400px; }
-  .auth-box h2 { font-family: var(--mono); font-size: 16px; letter-spacing: 3px; margin-bottom: 4px; }
-  .auth-box .auth-role { color: var(--muted); font-size: 12px; margin-bottom: 28px; font-family: var(--mono); }
-  .back-btn { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; margin-bottom: 24px; font-family: var(--mono); padding: 0; display: block; }
-  .back-btn:hover { color: var(--text); }
-  .auth-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
-  .auth-tab { flex: 1; padding: 10px; background: none; border: none; color: var(--muted); font-size: 13px; cursor: pointer; font-family: var(--sans); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
-  .auth-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-  /* FORMS */
-  .form-group { margin-bottom: 16px; }
-  label { display: block; font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; font-family: var(--mono); }
-  input, select { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 10px 12px; color: var(--text); font-size: 14px; font-family: var(--sans); transition: border-color 0.15s; }
-  input:focus, select:focus { outline: none; border-color: var(--accent); }
-  input:disabled { opacity: 0.5; cursor: not-allowed; }
-  select option { background: var(--surface); }
-  .btn { display: inline-block; width: 100%; padding: 11px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-family: var(--mono); letter-spacing: 1px; transition: opacity 0.15s; text-align: center; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { opacity: 0.85; }
-  .btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
-  .btn-ghost:hover { border-color: var(--accent); }
-  .btn-danger { background: var(--red); color: #fff; }
-  .btn-danger:hover { opacity: 0.85; }
-  .btn-sm { width: auto; padding: 6px 14px; font-size: 11px; }
-
-  /* APP SHELL */
-  #app-screen { display: none; min-height: 100vh; flex-direction: column; }
-  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 8px; height: 52px; flex-wrap: wrap; }
-  .topbar-brand { font-family: var(--mono); font-size: 14px; letter-spacing: 3px; margin-right: 16px; white-space: nowrap; }
-  .topbar-nav { display: flex; gap: 4px; flex: 1; }
-  .nav-btn { background: none; border: none; color: var(--muted); padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-family: var(--sans); transition: all 0.15s; white-space: nowrap; }
-  .nav-btn:hover { color: var(--text); background: var(--card); }
-  .nav-btn.active { color: var(--accent); background: var(--accent-dim); }
-  .topbar-user { font-size: 12px; color: var(--muted); font-family: var(--mono); white-space: nowrap; }
-  .logout-btn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: var(--mono); }
-  .logout-btn:hover { border-color: var(--red); color: var(--red); }
-
-  /* PAGES */
-  .page { display: none; padding: 28px 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+  /* LAYOUT */
+  .page { display: none; padding: 2rem; max-width: 960px; margin: 0 auto; }
   .page.active { display: block; }
-  .page-title { font-family: var(--mono); font-size: 18px; letter-spacing: 2px; margin-bottom: 24px; color: var(--text); }
 
   /* CARDS */
-  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
-  .panel h3 { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--muted); margin-bottom: 16px; text-transform: uppercase; }
-  .inline-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; align-items: end; }
+  .card { background: #fff; border: 0.5px solid #ddd; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-size: 15px; font-weight: 500; margin-bottom: 1rem; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .metric { background: #f5f5f0; border-radius: 8px; padding: 1rem; }
+  .metric-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 500; }
+
+  /* FORMS */
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-row.single { grid-template-columns: 1fr; }
+  .form-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 12px; color: #666; font-weight: 500; }
+  input, select { padding: 8px 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; background: #fff; color: #1a1a1a; outline: none; transition: border-color 0.15s; width: 100%; }
+  input:focus, select:focus { border-color: #888; }
+  .btn { padding: 8px 20px; border-radius: 8px; border: 0.5px solid #ddd; background: #1a1a1a; color: #fff; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+  .btn:hover { background: #333; }
+  .btn.secondary { background: #fff; color: #1a1a1a; }
+  .btn.secondary:hover { background: #f5f5f0; }
+  .btn.danger { background: #a32d2d; border-color: #a32d2d; color: #fff; }
+  .btn.danger:hover { background: #791f1f; }
+  .btn.success { background: #3b6d11; border-color: #3b6d11; color: #fff; }
+  .btn.success:hover { background: #27500a; }
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; }
 
   /* TABLE */
-  .tbl-wrap { overflow-x: auto; }
+  .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; padding: 10px 14px; color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: 1px; border-bottom: 1px solid var(--border); font-weight: 500; white-space: nowrap; }
-  td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { text-align: left; padding: 8px 12px; font-weight: 500; font-size: 12px; color: #888; border-bottom: 0.5px solid #eee; }
+  td { padding: 10px 12px; border-bottom: 0.5px solid #f0f0f0; color: #1a1a1a; }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: rgba(59,130,246,0.04); }
-  .empty-row td { text-align: center; color: var(--muted); font-size: 12px; font-family: var(--mono); padding: 32px; }
+  tr:hover td { background: #fafafa; }
 
-  /* BADGES */
-  .badge { display: inline-block; padding: 3px 9px; border-radius: 3px; font-size: 11px; font-family: var(--mono); font-weight: 500; }
-  .badge-green  { background: rgba(34,197,94,0.15);  color: var(--green); }
-  .badge-red    { background: rgba(239,68,68,0.15);   color: var(--red); }
-  .badge-yellow { background: rgba(245,158,11,0.15);  color: var(--yellow); }
-  .badge-blue   { background: rgba(59,130,246,0.15);  color: var(--accent); }
-  .badge-gray   { background: rgba(100,116,139,0.15); color: var(--muted); }
+  /* STATUS BADGES */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+  .badge.confirmed { background: #eaf3de; color: #3b6d11; }
+  .badge.pending { background: #faeeda; color: #854f0b; }
+  .badge.cancelled { background: #fcebeb; color: #a32d2d; }
+  .badge.scheduled { background: #e6f1fb; color: #185fa5; }
+  .badge.delayed { background: #faeeda; color: #854f0b; }
+  .badge.completed { background: #eaf3de; color: #3b6d11; }
 
-  /* STATS */
-  .stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
-  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
-  .stat-label { font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: 1px; margin-bottom: 8px; }
-  .stat-value { font-size: 26px; font-family: var(--mono); color: var(--text); }
+  /* TOAST */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 999; max-width: 320px; }
+  #toast.show { opacity: 1; }
+  #toast.error { background: #a32d2d; }
+  #toast.success { background: #3b6d11; }
 
-  /* MODAL */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 32px; width: 100%; max-width: 460px; }
-  .modal h3 { font-family: var(--mono); font-size: 14px; letter-spacing: 2px; margin-bottom: 20px; }
-  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-  .modal-actions .btn { flex: 1; }
+  /* SECTION HEADER */
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .section-title { font-size: 18px; font-weight: 500; }
+  .section-sub { font-size: 13px; color: #888; margin-top: 2px; }
 
-  /* LOADING */
-  .loading { color: var(--muted); font-family: var(--mono); font-size: 12px; padding: 24px; text-align: center; }
-  .dot::after { content: ''; animation: dots 1.4s steps(4,end) infinite; }
-  @keyframes dots { 0%,20%{content:''} 40%{content:'.'} 60%{content:'..'} 80%,100%{content:'...'} }
+  /* LOGIN PAGE */
+  .login-wrap { max-width: 400px; margin: 4rem auto; }
+  .login-title { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .login-sub { font-size: 14px; color: #888; margin-bottom: 1.5rem; }
+  .role-pills { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .role-pill { padding: 6px 16px; border-radius: 20px; border: 0.5px solid #ddd; background: #fff; cursor: pointer; font-size: 13px; color: #666; transition: all 0.15s; }
+  .role-pill:hover { border-color: #888; }
+  .role-pill.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
 
-  @media(max-width: 700px) {
-    .portal-grid { grid-template-columns: 1fr; }
-    .page { padding: 16px; }
-    .inline-form { grid-template-columns: 1fr; }
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 3rem 1rem; color: #aaa; font-size: 14px; }
+
+  /* DIVIDER */
+  hr { border: none; border-top: 0.5px solid #eee; margin: 1.25rem 0; }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+    .form-row.triple { grid-template-columns: 1fr; }
+    nav { padding: 0 1rem; }
+    .page { padding: 1rem; }
   }
 </style>
 </head>
 <body>
 
-<div id="toast-container"></div>
-
-<!-- ─── PORTAL ─── -->
-<div id="portal-screen">
-  <div class="portal-header">
-    <h1>✈ SKYLINK</h1>
-    <p>Airline Management System — PES University</p>
+<nav>
+  <div class="nav-brand"><span>✈</span> AirlineMS</div>
+  <div class="nav-tabs" id="navTabs" style="display:none">
+    <button class="tab-btn" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="tab-btn" id="passengerTab" onclick="showPage('passenger')" style="display:none">Bookings</button>
+    <button class="tab-btn" id="staffTab" onclick="showPage('staff')" style="display:none">Flights</button>
+    <button class="tab-btn" id="adminTab" onclick="showPage('admin')" style="display:none">Admin</button>
   </div>
-  <div class="portal-grid">
-    <div class="portal-card" onclick="selectPortal('PASSENGER')">
-      <div class="icon">🧳</div>
-      <h3>PASSENGER</h3>
-      <p>Search &amp; book flights, manage your trips</p>
-    </div>
-    <div class="portal-card" onclick="selectPortal('STAFF')">
-      <div class="icon">🛫</div>
-      <h3>STAFF</h3>
-      <p>Manage flights, schedules &amp; seat availability</p>
-    </div>
-    <div class="portal-card" onclick="selectPortal('ADMIN')">
-      <div class="icon">🛡️</div>
-      <h3>ADMIN</h3>
-      <p>Reports, user management &amp; system control</p>
-    </div>
+  <div class="nav-user">
+    <span id="navUserName" style="display:none"></span>
+    <span id="navRoleBadge" class="user-badge" style="display:none"></span>
+    <button class="btn secondary" id="logoutBtn" onclick="logout()" style="display:none; padding:4px 12px; font-size:12px;">Logout</button>
   </div>
-</div>
+</nav>
 
-<!-- ─── AUTH ─── -->
-<div id="auth-screen">
-  <div class="auth-box">
-    <button class="back-btn" onclick="goPortal()">← back to portals</button>
-    <h2 id="auth-title">SIGN IN</h2>
-    <div class="auth-role" id="auth-role-label"></div>
-    <div class="auth-tabs" id="auth-tabs">
-      <button class="auth-tab active" onclick="switchTab('login',this)">Login</button>
-      <button class="auth-tab" onclick="switchTab('register',this)">Register</button>
-    </div>
-    <div id="login-form">
-      <div class="form-group"><label>Username</label><input id="login-username" type="text" placeholder="your username" autocomplete="username"></div>
-      <div class="form-group"><label>Password</label><input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password"></div>
-      <button class="btn btn-primary" onclick="doLogin()">SIGN IN</button>
-    </div>
-    <div id="register-form" style="display:none">
-      <div class="form-group"><label>Username</label><input id="reg-username" type="text" placeholder="choose a username"></div>
-      <div class="form-group"><label>Email</label><input id="reg-email" type="email" placeholder="you@email.com"></div>
-      <div class="form-group"><label>Password</label><input id="reg-password" type="password" placeholder="choose a password"></div>
-      <div class="form-group"><label>Phone</label><input id="reg-phone" type="tel" placeholder="+91 ..."></div>
-      <button class="btn btn-primary" onclick="doRegister()">CREATE ACCOUNT</button>
-    </div>
-  </div>
-</div>
+<!-- LOGIN PAGE -->
+<div class="page active" id="loginPage">
+  <div class="login-wrap">
+    <div class="card" id="loginCard">
+      <p class="login-title">Welcome back</p>
+      <p class="login-sub">Sign in to your account</p>
 
-<!-- ─── APP ─── -->
-<div id="app-screen">
-  <div class="topbar">
-    <span class="topbar-brand">✈ SKYLINK</span>
-    <nav class="topbar-nav" id="topbar-nav"></nav>
-    <span class="topbar-user" id="topbar-user"></span>
-    <button class="logout-btn" onclick="doLogout()">logout</button>
-  </div>
+      <div class="role-pills">
+        <button class="role-pill active" onclick="selectRole('PASSENGER', this)">Passenger</button>
+        <button class="role-pill" onclick="selectRole('STAFF', this)">Staff</button>
+        <button class="role-pill" onclick="selectRole('ADMIN', this)">Admin</button>
+      </div>
 
-  <!-- PASSENGER -->
-  <div class="page" id="page-flights">
-    <div class="page-title">FLIGHT SEARCH</div>
-    <div class="panel">
-      <h3>Search by Route</h3>
-      <div class="inline-form">
-        <div class="form-group" style="margin:0"><label>From</label><input id="s-src" placeholder="e.g. BLR"></div>
-        <div class="form-group" style="margin:0"><label>To</label><input id="s-dest" placeholder="e.g. DEL"></div>
-        <div class="form-group" style="margin:0"><label>Date</label><input id="s-date" type="date"></div>
-        <div class="form-group" style="margin:0"><label>&nbsp;</label><button class="btn btn-primary" style="width:100%;padding:10px" onclick="searchFlights()">SEARCH</button></div>
-        <div class="form-group" style="margin:0"><label>&nbsp;</label><button class="btn btn-ghost" style="width:100%;padding:10px" onclick="loadAllFlights()">ALL FLIGHTS</button></div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Username</label>
+        <input type="text" id="loginUsername" placeholder="Enter username" />
+      </div>
+      <div class="field" style="margin-bottom:16px">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter password" />
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="doLogin()">Sign in</button>
+        <button class="btn secondary" onclick="showRegisterForm()">Create account</button>
       </div>
     </div>
-    <div class="panel">
-      <h3>Results</h3>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Flight #</th><th>Airline</th><th>From</th><th>To</th><th>Departure</th><th>Arrival</th><th>Avail Seats</th><th>Price</th><th>Status</th><th></th></tr></thead>
-          <tbody id="flights-tbody"><tr class="empty-row"><td colspan="10">Search for flights or click All Flights</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 
-  <div class="page" id="page-bookings">
-    <div class="page-title">MY BOOKINGS</div>
-    <div class="panel">
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>PNR</th><th>Flight ID</th><th>Seat Type</th><th>Pax</th><th>Amount</th><th>Booked On</th><th>Status</th><th></th></tr></thead>
-          <tbody id="bookings-tbody"><tr class="empty-row"><td colspan="8"><span class="dot">Loading</span></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="page" id="page-seats">
-    <div class="page-title">SEAT AVAILABILITY</div>
-    <div class="panel">
-      <h3>Enter Flight ID</h3>
-      <div class="inline-form">
-        <div class="form-group" style="margin:0"><label>Flight ID</label><input id="seat-flight-id" placeholder="paste flight UUID"></div>
-        <div class="form-group" style="margin:0"><label>&nbsp;</label><button class="btn btn-primary" style="width:100%;padding:10px" onclick="loadSeats()">VIEW SEATS</button></div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Seat #</th><th>Type</th><th>Row</th><th>Column</th><th>Price</th><th>Available</th></tr></thead>
-          <tbody id="seats-tbody"><tr class="empty-row"><td colspan="6">Enter a flight ID above</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- STAFF -->
-  <div class="page" id="page-manage-flights">
-    <div class="page-title">MANAGE FLIGHTS</div>
-    <div class="panel">
-      <h3>Add New Flight</h3>
-      <div class="inline-form">
-        <div class="form-group" style="margin:0"><label>Flight #</label><input id="f-num" placeholder="AI-202"></div>
-        <div class="form-group" style="margin:0"><label>Airline</label><input id="f-airline" placeholder="Air India"></div>
-        <div class="form-group" style="margin:0"><label>From</label><input id="f-src" placeholder="BLR"></div>
-        <div class="form-group" style="margin:0"><label>To</label><input id="f-dest" placeholder="DEL"></div>
-        <div class="form-group" style="margin:0"><label>Departure</label><input id="f-dep" type="datetime-local"></div>
-        <div class="form-group" style="margin:0"><label>Arrival</label><input id="f-arr" type="datetime-local"></div>
-        <div class="form-group" style="margin:0"><label>Total Seats</label><input id="f-seats" type="number" placeholder="180"></div>
-        <div class="form-group" style="margin:0"><label>Base Price (₹)</label><input id="f-price" type="number" placeholder="3500"></div>
-        <div class="form-group" style="margin:0"><label>&nbsp;</label><button class="btn btn-primary" style="width:100%;padding:10px" onclick="addFlight()">ADD FLIGHT</button></div>
-      </div>
-    </div>
-    <div class="panel">
-      <h3>All Flights</h3>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Flight #</th><th>Airline</th><th>Route</th><th>Departure</th><th>Seats</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody id="staff-flights-tbody"><tr class="empty-row"><td colspan="8"><span class="dot">Loading</span></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ADMIN -->
-  <div class="page" id="page-reports">
-    <div class="page-title">REPORTS</div>
-    <div class="panel">
-      <h3>Select Date Range</h3>
-      <div class="inline-form">
-        <div class="form-group" style="margin:0"><label>From</label><input id="r-from" type="date"></div>
-        <div class="form-group" style="margin:0"><label>To</label><input id="r-to" type="date"></div>
-        <div class="form-group" style="margin:0"><label>&nbsp;</label><button class="btn btn-primary" style="width:100%;padding:10px" onclick="loadRevenue()">REVENUE REPORT</button></div>
-        <div class="form-group" style="margin:0"><label>&nbsp;</label><button class="btn btn-ghost" style="width:100%;padding:10px" onclick="loadCancellations()">CANCELLATION REPORT</button></div>
-      </div>
-    </div>
-    <div id="report-result"></div>
-  </div>
-
-  <div class="page" id="page-users">
-    <div class="page-title">USER MANAGEMENT</div>
-    <div class="panel">
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody id="users-tbody"><tr class="empty-row"><td colspan="5"><span class="dot">Loading</span></td></tr></tbody>
-        </table>
+    <!-- Register form (hidden by default) -->
+    <div class="card" id="registerCard" style="display:none; margin-top:16px">
+      <p class="login-title" style="font-size:16px">Create account</p>
+      <p class="login-sub" style="margin-bottom:12px">Registering as: <strong id="registerRoleLabel">Passenger</strong></p>
+      <div class="field"><label>Username</label><input type="text" id="regUsername" placeholder="Choose a username" /></div>
+      <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="your@email.com" /></div>
+      <div class="field"><label>Phone</label><input type="tel" id="regPhone" placeholder="+91 9876543210" /></div>
+      <div class="field"><label>Password</label><input type="password" id="regPassword" placeholder="Choose a password" /></div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn" onclick="doRegister()">Register</button>
+        <button class="btn secondary" onclick="hideRegisterForm()">Cancel</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ─── MODALS ─── -->
-<div class="modal-overlay" id="modal-book">
-  <div class="modal">
-    <h3>BOOK FLIGHT</h3>
-    <input type="hidden" id="book-flight-id">
-    <div class="form-group"><label>Flight</label><input id="book-flight-info" disabled></div>
-    <div class="form-group">
-      <label>Seat Type</label>
-      <select id="book-seat-type">
-        <option value="ECONOMY">Economy</option>
-        <option value="BUSINESS">Business</option>
-        <option value="FIRST_CLASS">First Class</option>
+<!-- DASHBOARD PAGE -->
+<div class="page" id="dashboardPage">
+  <div class="section-header">
+    <div>
+      <p class="section-title" id="dashGreeting">Hello</p>
+    </div>
+    <button class="btn secondary" onclick="loadDashboard()">Refresh</button>
+  </div>
+  <div class="card-grid" id="dashMetrics">
+    <div class="metric"><div class="metric-label">Total flights</div><div class="metric-value" id="metricFlights">—</div></div>
+    <div class="metric"><div class="metric-label">My bookings</div><div class="metric-value" id="metricBookings">—</div></div>
+    <div class="metric"><div class="metric-label">Available seats</div><div class="metric-value" id="metricSeats">—</div></div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">Recent flights</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Flight</th><th>Route</th><th>Departure</th><th>Seats</th><th>Price</th><th>Status</th></tr></thead>
+        <tbody id="dashFlightsTable"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PASSENGER PAGE -->
+<div class="page" id="passengerPage">
+  <div class="section-header">
+    <div><p class="section-title">Book a flight</p><p class="section-sub">Search and book available flights</p></div>
+  </div>
+
+  <!-- Search -->
+  <div class="card">
+    <p class="card-title">Search flights</p>
+    <div class="form-row triple">
+      <div class="field"><label>From</label><input id="searchSrc" placeholder="e.g. Bangalore" /></div>
+      <div class="field"><label>To</label><input id="searchDest" placeholder="e.g. Mumbai" /></div>
+      <div class="field"><label>Date</label><input type="date" id="searchDate" /></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="searchFlights()">Search</button>
+      <button class="btn secondary" onclick="loadAllFlights()">Show all flights</button>
+    </div>
+  </div>
+
+  <!-- Search results -->
+  <div class="card" id="searchResultsCard" style="display:none">
+    <p class="card-title">Available flights</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Flight</th><th>Airline</th><th>Route</th><th>Departure</th><th>Seats</th><th>Price</th><th></th></tr></thead>
+        <tbody id="searchResultsTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Book form -->
+  <div class="card" id="bookFormCard" style="display:none">
+    <p class="card-title">Book flight — <span id="bookFlightLabel" style="color:#888; font-weight:400"></span></p>
+    <div class="form-row">
+      <div class="field">
+        <label>Seat class</label>
+        <select id="bookSeatType" onchange="onSeatClassChange()">
+          <option value="ECONOMY">Economy</option>
+          <option value="BUSINESS">Business</option>
+          <option value="FIRST_CLASS">First class</option>
+        </select>
+      </div>
+      <div class="field"><label>Passengers</label><input type="number" id="bookCount" min="1" max="9" value="1" onchange="updateSeatSelectionLimit()" /></div>
+    </div>
+
+    <!-- Seat map -->
+    <div id="seatMapSection" style="margin-top:1rem">
+      <p style="font-size:13px; font-weight:500; margin-bottom:8px">Select your seat(s)
+        <span style="font-size:11px; color:#888; font-weight:400" id="seatSelectHint"> — pick 1</span>
+      </p>
+      <div style="display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#888">
+        <span><span style="display:inline-block;width:14px;height:14px;background:#e6f1fb;border:1px solid #b3d0f0;border-radius:3px;vertical-align:middle;margin-right:4px"></span>Available</span>
+        <span><span style="display:inline-block;width:14px;height:14px;background:#1a1a1a;border:1px solid #1a1a1a;border-radius:3px;vertical-align:middle;margin-right:4px"></span>Selected</span>
+        <span><span style="display:inline-block;width:14px;height:14px;background:#eee;border:1px solid #ccc;border-radius:3px;vertical-align:middle;margin-right:4px"></span>Taken</span>
+      </div>
+      <div id="seatMapLoading" style="font-size:13px;color:#aaa;padding:1rem 0">Loading seats...</div>
+      <div id="seatMapGrid" style="display:grid; gap:4px; max-height:280px; overflow-y:auto; padding:4px 0"></div>
+      <p style="font-size:12px; color:#888; margin-top:8px">Selected: <span id="selectedSeatNums" style="color:#1a1a1a; font-weight:500">None</span></p>
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem">
+      <button class="btn success" onclick="confirmBooking()">Confirm booking</button>
+      <button class="btn secondary" onclick="document.getElementById('bookFormCard').style.display='none'; selectedSeatIds=[];">Cancel</button>
+    </div>
+  </div>
+
+  <hr>
+  <div class="section-header">
+    <div><p class="section-title">My bookings</p></div>
+    <button class="btn secondary" onclick="loadMyBookings()">Refresh</button>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>PNR</th><th>Flight</th><th>Route</th><th>Departure</th><th>Class</th><th>Seats</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="myBookingsTable"><tr><td colspan="8" class="empty">No bookings yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF PAGE -->
+<div class="page" id="staffPage">
+  <div class="section-header">
+    <div><p class="section-title">Flight management</p><p class="section-sub">Add and manage flights</p></div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">Add new flight</p>
+    <div class="form-row triple">
+      <div class="field"><label>Flight number</label><input id="fNum" placeholder="e.g. AI101" /></div>
+      <div class="field"><label>Airline</label><input id="fAirline" placeholder="e.g. Air India" /></div>
+      <div class="field"><label>Base price (₹)</label><input type="number" id="fPrice" placeholder="3500" /></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Source</label><input id="fSrc" placeholder="Bangalore" /></div>
+      <div class="field"><label>Destination</label><input id="fDest" placeholder="Mumbai" /></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Departure</label><input type="datetime-local" id="fDep" /></div>
+      <div class="field"><label>Arrival</label><input type="datetime-local" id="fArr" /></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Total seats</label><input type="number" id="fTotalSeats" placeholder="180" /></div>
+      <div class="field"><label>Available seats</label><input type="number" id="fAvailSeats" placeholder="180" /></div>
+    </div>
+    <div class="form-row single">
+      <div class="field">
+        <label>Flight type</label>
+        <select id="fType">
+          <option value="DOMESTIC">Domestic</option>
+          <option value="INTERNATIONAL">International</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn success" onclick="addFlight()">Add flight</button>
+    </div>
+  </div>
+
+  <div class="section-header" style="margin-top:1.5rem">
+    <p class="section-title">All flights</p>
+    <button class="btn secondary" onclick="loadStaffFlights()">Refresh</button>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Flight</th><th>Airline</th><th>Route</th><th>Departure</th><th>Seats</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="staffFlightsTable"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PAGE -->
+<div class="page" id="adminPage">
+  <div class="section-header">
+    <div><p class="section-title">Admin panel</p><p class="section-sub">Reports and user management</p></div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">Generate reports</p>
+    <div class="form-row triple">
+      <div class="field"><label>Report type</label>
+        <select id="reportType">
+          <option value="revenue">Revenue report</option>
+          <option value="cancellations">Cancellation report</option>
+        </select>
+      </div>
+      <div class="field"><label>From date</label><input type="date" id="reportFrom" /></div>
+      <div class="field"><label>To date</label><input type="date" id="reportTo" /></div>
+    </div>
+    <div class="btn-row"><button class="btn" onclick="generateReport()">Generate</button></div>
+  </div>
+
+  <div class="card" id="reportResultCard" style="display:none">
+    <p class="card-title">Report results</p>
+    <div class="card-grid" id="reportMetrics"></div>
+    <div class="table-wrap" id="reportTableWrap"></div>
+  </div>
+
+  <div class="section-header" style="margin-top:1.5rem">
+    <p class="section-title">All users</p>
+    <button class="btn secondary" onclick="loadUsers()">Refresh</button>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="usersTable"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- PAYMENT MODAL -->
+<div id="paymentModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:1.5rem; width:420px; max-width:90vw; border:0.5px solid #ddd;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+      <p style="font-size:16px; font-weight:500;">Complete payment</p>
+      <button onclick="closePaymentModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#888;">✕</button>
+    </div>
+
+    <div style="background:#f5f5f0; border-radius:8px; padding:12px; margin-bottom:1rem; font-size:13px;">
+      <span style="color:#888;">PNR:</span>
+      <strong id="payPnr" style="margin-left:8px;">—</strong>
+    </div>
+
+    <input type="hidden" id="payBookingId" />
+
+    <div class="field" style="margin-bottom:12px;">
+      <label>Amount (₹)</label>
+      <input type="number" id="payAmount" placeholder="Enter amount" min="0" />
+    </div>
+
+    <div class="field" style="margin-bottom:16px;">
+      <label>Payment method</label>
+      <select id="payMethod">
+        <option value="UPI">UPI</option>
+        <option value="CREDIT_CARD">Credit card</option>
+        <option value="DEBIT_CARD">Debit card</option>
+        <option value="NET_BANKING">Net banking</option>
       </select>
     </div>
-    <div class="form-group"><label>Number of Passengers (max 9)</label><input id="book-pax" type="number" min="1" max="9" value="1"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modal-book')">Cancel</button>
-      <button class="btn btn-primary" onclick="confirmBooking()">CONFIRM BOOKING</button>
-    </div>
-  </div>
-</div>
 
-<div class="modal-overlay" id="modal-edit-flight">
-  <div class="modal">
-    <h3>EDIT FLIGHT</h3>
-    <input type="hidden" id="edit-flight-id">
-    <div class="form-group"><label>Flight Number</label><input id="edit-f-num"></div>
-    <div class="form-group"><label>Airline Name</label><input id="edit-f-airline"></div>
-    <div class="form-group"><label>Departure</label><input id="edit-f-dep" type="datetime-local"></div>
-    <div class="form-group"><label>Base Price (₹)</label><input id="edit-f-price" type="number"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modal-edit-flight')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveFlightEdit()">SAVE CHANGES</button>
+    <div style="display:flex; gap:8px;">
+      <button class="btn success" style="flex:1;" onclick="processPayment()">Pay now</button>
+      <button class="btn secondary" onclick="closePaymentModal()">Pay later</button>
     </div>
-  </div>
-</div>
 
-<div class="modal-overlay" id="modal-confirm">
-  <div class="modal">
-    <h3 id="modal-confirm-title">CONFIRM</h3>
-    <p id="modal-confirm-msg" style="color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:4px"></p>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button>
-      <button class="btn btn-danger" id="modal-confirm-ok">CONFIRM</button>
-    </div>
+    <p style="font-size:11px; color:#aaa; text-align:center; margin-top:12px;">This is a demo — no real payment is processed</p>
   </div>
 </div>
+<div id="toast"></div>
 
 <script>
-const API = 'http://localhost:8081/api';
-let currentPortal = null;
-let currentUser   = null;
+const API = 'http://localhost:8081';
+let currentUser = null;
+let selectedRole = 'PASSENGER';
+let bookingFlightId = null;
+let selectedSeatIds = [];   // seat IDs chosen in the seat map
 
-// ─── TOAST ───
-function toast(msg, type = 'info', ms = 4000) {
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.textContent = msg;
-  document.getElementById('toast-container').appendChild(el);
-  setTimeout(() => el.remove(), ms);
+function selectRole(role, el) {
+  selectedRole = role;
+  document.querySelectorAll('.role-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  const label = document.getElementById('registerRoleLabel');
+  if (label) label.textContent = role.charAt(0) + role.slice(1).toLowerCase();
 }
 
-// ─── API WRAPPER ───
-async function apiFetch(method, path, body = null, textResp = false) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(API + path, opts);
-  if (textResp) {
-    const t = await res.text();
-    if (!res.ok) throw new Error(t || `Error ${res.status}`);
-    return t;
-  }
-  if (res.status === 204) return null;
-  const txt = await res.text();
-  if (!txt) return null;
-  let data;
-  try { data = JSON.parse(txt); } catch { data = txt; }
-  if (!res.ok) {
-    const msg = (data && typeof data === 'object') ? (data.message || data.error || JSON.stringify(data)) : (txt || `Error ${res.status}`);
-    throw new Error(msg);
-  }
-  return data;
-}
-
-// ─── SCREENS ───
-function showScreen(id) {
-  document.getElementById('portal-screen').style.display = 'none';
-  document.getElementById('auth-screen').style.display   = 'none';
-  document.getElementById('app-screen').style.display    = 'none';
-  const el = document.getElementById(id);
-  el.style.display = (id === 'app-screen') ? 'flex' : 'flex';
-  if (id !== 'app-screen') el.style.flexDirection = 'column';
-}
-
-// ─── PORTAL ───
-function selectPortal(role) {
-  currentPortal = role;
-  document.getElementById('auth-title').textContent    = role === 'PASSENGER' ? 'SIGN IN' : `${role} LOGIN`;
-  document.getElementById('auth-role-label').textContent = role.toLowerCase() + ' portal';
-  document.getElementById('auth-tabs').style.display   = role === 'PASSENGER' ? 'flex' : 'none';
-  switchTab('login', document.querySelector('.auth-tab'));
-  showScreen('auth-screen');
-}
-
-function goPortal() { showScreen('portal-screen'); }
-
-// ─── AUTH TABS ───
-function switchTab(tab, btn) {
-  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  document.getElementById('login-form').style.display    = tab === 'login'    ? 'block' : 'none';
-  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
-}
-
-// ─── LOGIN ───
-async function doLogin() {
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value;
-  if (!username || !password) { toast('Enter username and password', 'error'); return; }
+async function api(method, path, body) {
   try {
-    const data = await apiFetch('POST', '/auth/login', { username, password });
-    const role = data.role || data.userRole || currentPortal;
-    if (role && role !== currentPortal) {
-      toast(`This account is "${role}". Please use the ${role.toLowerCase()} portal.`, 'error', 6000);
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    if (!res.ok) throw new Error(typeof data === 'string' ? data : (data.message || data.error || JSON.stringify(data)));
+    return data;
+  } catch (e) {
+    if (e.name === 'TypeError' && e.message.includes('fetch')) {
+      throw new Error('Cannot connect to server. Make sure Spring Boot is running on port 8081.');
+    }
+    throw e;
+  }
+}
+
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = '', 3000);
+}
+
+function fmt(dt) {
+  if (!dt) return '—';
+  return new Date(dt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDate(dt) {
+  if (!dt) return '—';
+  return new Date(dt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function badge(status) {
+  const s = (status || '').toLowerCase();
+  return `<span class="badge ${s}">${status}</span>`;
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(name + 'Page').classList.add('active');
+  const tabs = { dashboard: 0, passenger: 1, staff: 2, admin: 3 };
+  const allTabs = document.querySelectorAll('.tab-btn');
+  if (allTabs[tabs[name]]) allTabs[tabs[name]].classList.add('active');
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'passenger') { loadAllFlights(); loadMyBookings(); }
+  if (name === 'staff') loadStaffFlights();
+  if (name === 'admin') loadUsers();
+}
+
+function showRegisterForm() {
+  document.getElementById('registerCard').style.display = 'block';
+  document.getElementById('registerRoleLabel').textContent =
+    selectedRole.charAt(0) + selectedRole.slice(1).toLowerCase();
+  document.getElementById('regUsername').focus();
+}
+function hideRegisterForm() {
+  document.getElementById('registerCard').style.display = 'none';
+  ['regUsername','regEmail','regPhone','regPassword'].forEach(id =>
+    (document.getElementById(id).value = ''));
+}
+async function doRegister() {
+  const username = document.getElementById('regUsername').value.trim();
+  const email    = document.getElementById('regEmail').value.trim();
+  const phone    = document.getElementById('regPhone').value.trim();
+  const password = document.getElementById('regPassword').value.trim();
+  if (!username || !email || !password)
+    return toast('Username, email and password are required', 'error');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return toast('Please enter a valid email address', 'error');
+  try {
+    await api('POST', '/api/auth/register', { username, email, phone, password, role: selectedRole });
+    toast('Account created! Please sign in.', 'success');
+    hideRegisterForm();
+    document.getElementById('loginUsername').value = username;
+    document.getElementById('loginPassword').value = password;
+  } catch (e) { toast(e.message, 'error'); }
+}
+async function doLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+
+  if (!username || !password) {
+    toast('Enter username and password', 'error');
+    return;
+  }
+
+  try {
+    // Fix: send role so backend can do username+role lookup (avoids NonUniqueResultException
+    // when the same username exists under multiple roles in the DB).
+    const res = await api('POST', '/api/auth/login', { username, password, role: selectedRole });
+
+    currentUser = {
+      userId: res.userId,
+      username: res.username,
+      role: res.role,
+      email: res.email
+    };
+
+    if (!currentUser.userId) {
+      toast('Login failed: no user ID returned', 'error');
       return;
     }
-    currentUser = { ...data, username, role };
-    toast(`Welcome back, ${username}!`, 'success');
-    launchApp();
+
+    afterLogin();
+    toast('Welcome, ' + currentUser.username + '!', 'success');
+
   } catch (e) {
-    toast(e.message || 'Login failed. Check your credentials.', 'error');
-  }
-}
-
-// ─── REGISTER ───
-async function doRegister() {
-  const username = document.getElementById('reg-username').value.trim();
-  const email    = document.getElementById('reg-email').value.trim();
-  const password = document.getElementById('reg-password').value;
-  const phone    = document.getElementById('reg-phone').value.trim();
-  if (!username || !email || !password) { toast('Username, email and password are required', 'error'); return; }
-  try {
-    await apiFetch('POST', '/auth/register', { username, email, password, phone, role: 'PASSENGER' });
-    toast('Account created! Please login.', 'success');
-    switchTab('login', document.querySelector('.auth-tab'));
-  } catch (e) {
-    toast(e.message || 'Registration failed', 'error');
-  }
-}
-
-// ─── LAUNCH APP ───
-function launchApp() {
-  showScreen('app-screen');
-  document.getElementById('topbar-user').textContent = `${currentUser.username} · ${(currentUser.role||'').toLowerCase()}`;
-  const nav = document.getElementById('topbar-nav');
-  nav.innerHTML = '';
-
-  const pagesByRole = {
-    PASSENGER: [
-      { id: 'flights',  label: 'Search Flights', load: loadAllFlights },
-      { id: 'bookings', label: 'My Bookings',    load: loadMyBookings },
-      { id: 'seats',    label: 'Seat Availability', load: null },
-    ],
-    STAFF: [
-      { id: 'manage-flights', label: 'Manage Flights', load: loadStaffFlights },
-    ],
-    ADMIN: [
-      { id: 'reports', label: 'Reports',  load: null },
-      { id: 'users',   label: 'Users',    load: loadUsers },
-    ],
-  };
-
-  const pages = pagesByRole[currentUser.role] || [];
-  pages.forEach((p, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'nav-btn' + (i === 0 ? ' active' : '');
-    btn.textContent = p.label;
-    btn.dataset.page = p.id;
-    btn.onclick = () => {
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      showPage(p.id);
-      if (p.load) p.load();
-    };
-    nav.appendChild(btn);
-  });
-
-  if (pages.length > 0) {
-    showPage(pages[0].id);
-    if (pages[0].load) pages[0].load();
-  }
-}
-
-function showPage(pageId) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const el = document.getElementById(`page-${pageId}`);
-  if (el) el.classList.add('active');
-}
-
-function doLogout() {
-  currentUser = null; currentPortal = null;
-  document.getElementById('login-username').value = '';
-  document.getElementById('login-password').value = '';
-  showScreen('portal-screen');
-  toast('Logged out successfully', 'info');
-}
-
-// ─── PASSENGER: FLIGHTS ───
-async function loadAllFlights() {
-  document.getElementById('flights-tbody').innerHTML = `<tr class="empty-row"><td colspan="10"><span class="dot">Loading</span></td></tr>`;
-  try {
-    const flights = await apiFetch('GET', '/flights');
-    renderFlightTable(flights, 'flights-tbody', true);
-  } catch (e) {
-    document.getElementById('flights-tbody').innerHTML = `<tr class="empty-row"><td colspan="10">Failed to load flights</td></tr>`;
     toast(e.message, 'error');
   }
 }
 
-async function searchFlights() {
-  const src  = document.getElementById('s-src').value.trim();
-  const dest = document.getElementById('s-dest').value.trim();
-  const date = document.getElementById('s-date').value;
-  if (!src || !dest || !date) { toast('Fill in source, destination and date', 'error'); return; }
+function afterLogin() {
+  document.getElementById('loginPage').classList.remove('active');
+  document.getElementById('navTabs').style.display = 'flex';
+  document.getElementById('navUserName').textContent = currentUser.username;
+  document.getElementById('navUserName').style.display = 'inline';
+  document.getElementById('logoutBtn').style.display = 'inline-block';
+
+  const roleBadge = document.getElementById('navRoleBadge');
+  roleBadge.textContent = currentUser.role;
+  roleBadge.className = 'user-badge ' + (currentUser.role || '').toLowerCase();
+  roleBadge.style.display = 'inline-block';
+
+  // Bug fix: Bookings tab only for PASSENGER
+  if (currentUser.role === 'PASSENGER') {
+    document.getElementById('passengerTab').style.display = 'inline-block';
+  }
+  // Flights tab for STAFF and ADMIN
+  if (currentUser.role === 'STAFF' || currentUser.role === 'ADMIN') {
+    document.getElementById('staffTab').style.display = 'inline-block';
+  }
+  if (currentUser.role === 'ADMIN') {
+    document.getElementById('adminTab').style.display = 'inline-block';
+  }
+
+  showPage('dashboard');
+  document.querySelectorAll('.tab-btn')[0].classList.add('active');
+}
+
+function logout() {
+  currentUser = null;
+  document.getElementById('navTabs').style.display = 'none';
+  document.getElementById('navUserName').style.display = 'none';
+  document.getElementById('navRoleBadge').style.display = 'none';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('passengerTab').style.display = 'none';
+  document.getElementById('staffTab').style.display = 'none';
+  document.getElementById('adminTab').style.display = 'none';
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('loginPage').classList.add('active');
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+  selectedRole = 'PASSENGER';
+  document.querySelectorAll('.role-pill').forEach((p, i) => p.classList.toggle('active', i === 0));
+}
+
+async function loadDashboard() {
+  document.getElementById('dashGreeting').textContent = 'Hello, ' + (currentUser ? currentUser.username : '') + '.';
   try {
-    const flights = await apiFetch('GET', `/flights/search?src=${encodeURIComponent(src)}&dest=${encodeURIComponent(dest)}&date=${encodeURIComponent(date + 'T00:00:00')}`);
-    renderFlightTable(flights, 'flights-tbody', true);
-    if (!flights || flights.length === 0) toast('No flights found for that route/date', 'info');
-    else toast(`Found ${flights.length} flight(s)`, 'success');
+    const flights = await api('GET', '/api/flights');
+    document.getElementById('metricFlights').textContent = flights.length;
+    const totalSeats = flights.reduce((sum, f) => sum + (f.availableSeats || 0), 0);
+    document.getElementById('metricSeats').textContent = totalSeats.toLocaleString();
+
+    const tbody = document.getElementById('dashFlightsTable');
+    if (!flights.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No flights yet</td></tr>'; return; }
+    tbody.innerHTML = flights.slice(0, 6).map(f => `
+      <tr>
+        <td><strong>${f.flightNumber || '—'}</strong></td>
+        <td>${f.source || '—'} → ${f.destination || '—'}</td>
+        <td>${fmt(f.departureTime)}</td>
+        <td>${f.availableSeats ?? '—'} / ${f.totalSeats ?? '—'}</td>
+        <td>₹${(f.basePrice || 0).toLocaleString()}</td>
+        <td>${badge(f.status || 'SCHEDULED')}</td>
+      </tr>`).join('');
+  } catch (e) { toast(e.message, 'error'); }
+
+  if (currentUser && currentUser.userId) {
+    try {
+      const bookings = await api('GET', '/api/bookings/passenger/' + currentUser.userId);
+      document.getElementById('metricBookings').textContent = Array.isArray(bookings) ? bookings.length : '—';
+    } catch { document.getElementById('metricBookings').textContent = '0'; }
+  } else {
+    document.getElementById('metricBookings').textContent = '0';
+  }
+}
+
+async function loadAllFlights() {
+  try {
+    const flights = await api('GET', '/api/flights');
+    renderSearchResults(flights);
   } catch (e) { toast(e.message, 'error'); }
 }
 
-function renderFlightTable(flights, tbodyId, withBook) {
-  const tbody = document.getElementById(tbodyId);
-  if (!flights || flights.length === 0) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="10">No flights found</td></tr>`; return;
-  }
-  tbody.innerHTML = flights.map(f => `<tr>
-    <td><span style="font-family:var(--mono)">${esc(f.flightNumber)}</span></td>
-    <td>${esc(f.airlineName)}</td>
-    <td>${esc(f.source)}</td>
-    <td>${esc(f.destination)}</td>
-    <td style="font-family:var(--mono);font-size:12px">${fmtDt(f.departureTime)}</td>
-    <td style="font-family:var(--mono);font-size:12px">${fmtDt(f.arrivalTime)}</td>
-    <td>${f.availableSeats ?? '—'}</td>
-    <td>₹${f.basePrice ?? '—'}</td>
-    <td>${statusBadge(f.status)}</td>
-    <td>${withBook && f.status !== 'CANCELLED' && f.status !== 'COMPLETED'
-      ? `<button class="btn btn-primary btn-sm" onclick="openBookModal('${f.flightId}','${esc(f.flightNumber)} ${esc(f.source)}→${esc(f.destination)}')">Book</button>`
-      : ''}</td>
-  </tr>`).join('');
+async function searchFlights() {
+  const src = document.getElementById('searchSrc').value.trim();
+  const dest = document.getElementById('searchDest').value.trim();
+  const date = document.getElementById('searchDate').value;
+  if (!src || !dest || !date) { toast('Fill in all search fields', 'error'); return; }
+  try {
+    const flights = await api('GET', `/api/flights/search?src=${encodeURIComponent(src)}&dest=${encodeURIComponent(dest)}&date=${date}T00:00:00`);
+    renderSearchResults(flights);
+    if (!flights.length) toast('No flights found for that route/date');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
-// ─── BOOK MODAL ───
-function openBookModal(flightId, info) {
-  document.getElementById('book-flight-id').value   = flightId;
-  document.getElementById('book-flight-info').value = info;
-  document.getElementById('book-pax').value = 1;
-  document.getElementById('modal-book').classList.add('open');
+function renderSearchResults(flights) {
+  const card = document.getElementById('searchResultsCard');
+  const tbody = document.getElementById('searchResultsTable');
+  card.style.display = 'block';
+  if (!flights.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No flights found</td></tr>'; return; }
+  tbody.innerHTML = flights.map(f => `
+    <tr>
+      <td><strong>${f.flightNumber || '—'}</strong></td>
+      <td>${f.airlineName || '—'}</td>
+      <td>${f.source || '—'} → ${f.destination || '—'}</td>
+      <td>${fmt(f.departureTime)}</td>
+      <td>${f.availableSeats ?? '—'}</td>
+      <td>₹${(f.basePrice || 0).toLocaleString()}</td>
+      <td><button class="btn" style="padding:4px 12px;font-size:12px" onclick="openBookForm('${f.flightId}','${f.flightNumber} ${f.source}→${f.destination}')">Book</button></td>
+    </tr>`).join('');
+}
+
+function openBookForm(flightId, label) {
+  bookingFlightId = flightId;
+  selectedSeatIds = [];
+  document.getElementById('bookFlightLabel').textContent = label;
+  document.getElementById('bookFormCard').style.display = 'block';
+  document.getElementById('bookFormCard').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('bookCount').value = 1;
+  updateSeatSelectionLimit();
+  loadSeatMap();
+}
+
+function onSeatClassChange() {
+  selectedSeatIds = [];
+  loadSeatMap();
+}
+
+function updateSeatSelectionLimit() {
+  const n = parseInt(document.getElementById('bookCount').value) || 1;
+  document.getElementById('seatSelectHint').textContent = ` — pick ${n}`;
+  // deselect extras if limit reduced
+  if (selectedSeatIds.length > n) {
+    selectedSeatIds = selectedSeatIds.slice(0, n);
+    refreshSeatMapSelection();
+  }
+}
+function openPaymentModal(booking) {
+  document.getElementById('payBookingId').value = booking.bookingId;
+  document.getElementById('payPnr').textContent = booking.pnr;
+  document.getElementById('payAmount').value = booking.totalAmount || '';
+  document.getElementById('paymentModal').style.display = 'flex';
+}
+
+async function processPayment() {
+  const bookingId = document.getElementById('payBookingId').value;
+  const amount = parseFloat(document.getElementById('payAmount').value) || 0;
+  const method = document.getElementById('payMethod').value;
+  if (!amount || amount <= 0) { toast('Enter a valid amount', 'error'); return; }
+  try {
+    const payment = await api('POST', '/api/payments', { bookingId, amount, paymentMethod: method });
+    toast('Payment successful! Transaction ID: ' + payment.transactionId, 'success');
+    document.getElementById('paymentModal').style.display = 'none';
+    loadMyBookings();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function closePaymentModal() {
+  document.getElementById('paymentModal').style.display = 'none';
+}
+
+async function loadSeatMap() {
+  const seatType = document.getElementById('bookSeatType').value;
+  const grid = document.getElementById('seatMapGrid');
+  document.getElementById('seatMapLoading').style.display = 'block';
+  grid.innerHTML = '';
+  document.getElementById('selectedSeatNums').textContent = 'None';
+  selectedSeatIds = [];
+
+  try {
+    // Use /all so we get taken seats too — needed to grey them out
+    const allSeats = await api('GET', `/api/seats/${bookingFlightId}/all`);
+    document.getElementById('seatMapLoading').style.display = 'none';
+
+    if (!allSeats || allSeats.length === 0) {
+      grid.innerHTML = '<p style="font-size:13px;color:#aaa;padding:8px 0">No seat data yet — seats will be auto-assigned on booking.</p>';
+      return;
+    }
+
+    // Filter to chosen class
+    const typeSeats = allSeats.filter(s => s.seatType === seatType);
+    if (!typeSeats.length) {
+      grid.innerHTML = '<p style="font-size:13px;color:#aaa;padding:8px 0">No seats in this class.</p>';
+      return;
+    }
+
+    // Determine unique sorted rows and columns
+    const rows = [...new Set(typeSeats.map(s => s.row))].sort((a, b) => a - b);
+    const cols = [...new Set(typeSeats.map(s => s.seatColumn))].sort();
+
+    // Class colours
+    const classColour = { ECONOMY: '#2563eb', BUSINESS: '#7c3aed', FIRST_CLASS: '#b45309' };
+    const classBg     = { ECONOMY: '#eff6ff', BUSINESS: '#f5f3ff', FIRST_CLASS: '#fffbeb' };
+    const classBorder = { ECONOMY: '#bfdbfe', BUSINESS: '#ddd6fe', FIRST_CLASS: '#fde68a' };
+    const c  = classColour[seatType] || '#2563eb';
+    const bg = classBg[seatType]     || '#eff6ff';
+    const bd = classBorder[seatType] || '#bfdbfe';
+
+    // Build lookup by "row-col"
+    const byPos = {};
+    typeSeats.forEach(s => { byPos[`${s.row}-${s.seatColumn}`] = s; });
+
+    // Find the aisle gap: ECONOMY/BUSINESS = after col C | FIRST_CLASS = after col B
+    const aisleAfter = seatType === 'FIRST_CLASS' ? 'B' : 'C';
+
+    // ── Cabin wrapper ────────────────────────────────────────
+    grid.style.display    = 'block';
+    grid.style.overflowX  = 'auto';
+    grid.style.paddingBottom = '8px';
+
+    let html = `
+      <div style="display:inline-block;min-width:320px;font-family:inherit">
+        <!-- nose icon -->
+        <div style="text-align:center;margin-bottom:6px;font-size:22px;color:#94a3b8">✈</div>
+
+        <!-- column header row -->
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;padding-left:32px">`;
+
+    cols.forEach((col, i) => {
+      if (i > 0 && cols[i - 1] === aisleAfter)
+        html += `<div style="width:20px"></div>`;   // aisle gap
+      html += `<div style="width:34px;text-align:center;font-size:11px;font-weight:600;color:#64748b">${col}</div>`;
+    });
+    html += `</div>`;
+
+    // ── Seat rows ────────────────────────────────────────────
+    rows.forEach(row => {
+      html += `<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">`;
+      // row number label
+      html += `<div style="width:28px;text-align:right;font-size:11px;color:#94a3b8;padding-right:4px">${row}</div>`;
+
+      cols.forEach((col, i) => {
+        if (i > 0 && cols[i - 1] === aisleAfter)
+          html += `<div style="width:20px"></div>`;   // aisle gap
+
+        const seat = byPos[`${row}-${col}`];
+        if (!seat) {
+          html += `<div style="width:34px"></div>`;
+          return;
+        }
+        const avail   = seat.available;
+        const seatBg  = avail ? bg    : '#e2e8f0';
+        const seatBd  = avail ? bd    : '#cbd5e1';
+        const seatCol = avail ? c     : '#94a3b8';
+        const cursor  = avail ? 'pointer' : 'not-allowed';
+        const onclick = avail ? `toggleSeat('${seat.seatId}','${seat.seatNumber}')` : '';
+        const title   = `${seat.seatNumber} — ${avail ? 'Available ₹' + Math.round(seat.price) : 'Taken'}`;
+
+        html += `
+          <div id="seat-${seat.seatId}"
+               data-seatid="${seat.seatId}"
+               data-seatnum="${seat.seatNumber}"
+               data-avail="${avail}"
+               onclick="${onclick}"
+               title="${title}"
+               style="
+                 width:34px;height:32px;border-radius:6px 6px 4px 4px;
+                 font-size:10px;font-weight:600;
+                 display:flex;align-items:center;justify-content:center;
+                 cursor:${cursor};
+                 border:1.5px solid ${seatBd};
+                 background:${seatBg};
+                 color:${seatCol};
+                 box-shadow:${avail ? '0 1px 3px rgba(0,0,0,.08)' : 'none'};
+                 transition:all .12s;
+                 position:relative;
+               "
+          >${seat.seatNumber}</div>`;
+      });
+
+      html += `</div>`;  // end row
+    });
+
+    html += `</div>`;  // end cabin wrapper
+    grid.innerHTML = html;
+
+  } catch (e) {
+    document.getElementById('seatMapLoading').style.display = 'none';
+    grid.innerHTML = '<p style="font-size:13px;color:#aaa;padding:8px 0">Could not load seat map.</p>';
+    console.error(e);
+  }
+}
+
+function toggleSeat(seatId, seatNum) {
+  const limit = parseInt(document.getElementById('bookCount').value) || 1;
+  const idx   = selectedSeatIds.indexOf(seatId);
+  if (idx >= 0) {
+    selectedSeatIds.splice(idx, 1);
+  } else {
+    if (selectedSeatIds.length >= limit) {
+      toast(`Select exactly ${limit} seat(s) — one per passenger`, 'error');
+      return;
+    }
+    selectedSeatIds.push(seatId);
+  }
+  refreshSeatMapSelection();
+}
+
+function refreshSeatMapSelection() {
+  const seatType  = document.getElementById('bookSeatType').value;
+  const classColour = { ECONOMY: '#2563eb', BUSINESS: '#7c3aed', FIRST_CLASS: '#b45309' };
+  const classBg     = { ECONOMY: '#eff6ff', BUSINESS: '#f5f3ff', FIRST_CLASS: '#fffbeb' };
+  const classBorder = { ECONOMY: '#bfdbfe', BUSINESS: '#ddd6fe', FIRST_CLASS: '#fde68a' };
+  const c  = classColour[seatType] || '#2563eb';
+  const bg = classBg[seatType]     || '#eff6ff';
+  const bd = classBorder[seatType] || '#bfdbfe';
+
+  document.querySelectorAll('[data-seatid]').forEach(el => {
+    if (el.dataset.avail !== 'true') return;   // leave taken seats alone
+    const isSelected = selectedSeatIds.includes(el.dataset.seatid);
+    el.style.background   = isSelected ? '#1e293b' : bg;
+    el.style.color        = isSelected ? '#f8fafc'  : c;
+    el.style.borderColor  = isSelected ? '#0f172a'  : bd;
+    el.style.boxShadow    = isSelected ? '0 0 0 2px #0f172a40' : '0 1px 3px rgba(0,0,0,.08)';
+    el.style.transform    = isSelected ? 'scale(1.08)' : 'scale(1)';
+  });
+
+  const nums = selectedSeatIds.map(id => {
+    const el = document.querySelector(`[data-seatid="${id}"]`);
+    return el ? el.dataset.seatnum : id;
+  });
+  document.getElementById('selectedSeatNums').textContent = nums.length ? nums.join(', ') : 'None';
 }
 
 async function confirmBooking() {
-  const flightId    = document.getElementById('book-flight-id').value;
-  const seatType    = document.getElementById('book-seat-type').value;
-  const pax         = parseInt(document.getElementById('book-pax').value) || 1;
-  const passengerId = currentUser.userId || currentUser.id || currentUser.passengerId;
-  if (!passengerId) { toast('Cannot get passenger ID from login response. Check your API response fields.', 'error', 6000); return; }
+  if (!currentUser || !currentUser.userId) {
+    toast('Could not find your user ID. Try logging out and back in.', 'error'); return;
+  }
+  const seatType = document.getElementById('bookSeatType').value;
+  const count = parseInt(document.getElementById('bookCount').value);
+  if (selectedSeatIds.length > 0 && selectedSeatIds.length < count) {
+    toast(`Please select exactly ${count} seat(s), or deselect all for auto-assign.`, 'error'); return;
+  }
   try {
-    const b = await apiFetch('POST', '/bookings', { flightId, passengerId, seatType, passengerCount: pax });
-    toast(`Booking confirmed! PNR: ${b.pnr || 'generated'}`, 'success', 5000);
-    closeModal('modal-book');
-    // navigate to bookings
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-      if (btn.dataset.page === 'bookings') { btn.click(); }
+    const booking = await api('POST', '/api/bookings', {
+      flightId: bookingFlightId,
+      passengerId: currentUser.userId,
+      seatType, passengerCount: count,
+      seatIds: selectedSeatIds.length ? selectedSeatIds : null
     });
-  } catch (e) { toast(e.message || 'Booking failed', 'error'); }
+    toast('Booking confirmed! PNR: ' + booking.pnr + ' — Please complete payment.', 'success');
+    selectedSeatIds = [];
+    document.getElementById('bookFormCard').style.display = 'none';
+    openPaymentModal(booking);  // ← trigger payment
+    loadMyBookings();
+    loadDashboard();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
-// ─── MY BOOKINGS ───
 async function loadMyBookings() {
-  const pid = currentUser.userId || currentUser.id || currentUser.passengerId;
-  const tbody = document.getElementById('bookings-tbody');
-  if (!pid) { tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Passenger ID not found in login response</td></tr>`; return; }
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="8"><span class="dot">Loading</span></td></tr>`;
+  if (!currentUser || !currentUser.userId) { return; }
   try {
-    const bookings = await apiFetch('GET', `/bookings/passenger/${pid}`);
-    if (!bookings || bookings.length === 0) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No bookings yet. Search for a flight and book!</td></tr>`; return;
+    const bookings = await api('GET', '/api/bookings/passenger/' + currentUser.userId + '/details');
+    const tbody = document.getElementById('myBookingsTable');
+    if (!Array.isArray(bookings) || !bookings.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No bookings yet</td></tr>'; return;
     }
-    tbody.innerHTML = bookings.map(b => `<tr>
-      <td style="font-family:var(--mono);font-weight:500">${esc(b.pnr)}</td>
-      <td style="font-family:var(--mono);font-size:11px">${esc(b.flightId)}</td>
-      <td>${esc(b.seatType)}</td>
-      <td>${b.numberOfPassengers ?? 1}</td>
-      <td>₹${b.totalAmount ?? '—'}</td>
-      <td style="font-size:12px">${fmtDt(b.bookingDate)}</td>
-      <td>${statusBadge(b.status)}</td>
-      <td>${b.status !== 'CANCELLED'
-        ? `<button class="btn btn-danger btn-sm" onclick="cancelBooking('${b.bookingId}')">Cancel</button>`
-        : ''}</td>
-    </tr>`).join('');
-  } catch (e) { tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Error loading bookings</td></tr>`; toast(e.message, 'error'); }
+    tbody.innerHTML = bookings.map(b => `
+      <tr>
+        <td><strong>${b.pnr || '—'}</strong></td>
+        <td>${b.flightNumber || '—'}<br><span style="font-size:11px;color:#888">${b.airlineName || ''}</span></td>
+        <td>${b.source || '—'} → ${b.destination || '—'}</td>
+        <td>${fmt(b.departureTime)}</td>
+        <td>${b.seatType || '—'}</td>
+        <td style="font-size:12px">${b.seatNumbers && b.seatNumbers.length ? b.seatNumbers.join(', ') : `${b.numberOfPassengers} pax`}</td>
+        <td>${badge(b.status)}</td>
+        <td>${b.status !== 'CANCELLED' ? `<button class="btn danger" style="padding:3px 10px;font-size:12px" onclick="cancelBooking('${b.bookingId}')">Cancel</button>` : '—'}</td>
+      </tr>`).join('');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 async function cancelBooking(bookingId) {
-  confirmAction('CANCEL BOOKING', 'Cancel this booking? A refund will be initiated for eligible bookings.', async () => {
-    try {
-      const msg = await apiFetch('PUT', `/bookings/${bookingId}/cancel`, null, true);
-      toast(msg || 'Booking cancelled. Refund initiated.', 'success');
-      loadMyBookings();
-    } catch (e) { toast(e.message, 'error'); }
-  });
-}
-
-// ─── SEATS ───
-async function loadSeats() {
-  const fid = document.getElementById('seat-flight-id').value.trim();
-  if (!fid) { toast('Enter a flight ID', 'error'); return; }
-  const tbody = document.getElementById('seats-tbody');
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="6"><span class="dot">Loading</span></td></tr>`;
+  if (!confirm('Cancel this booking?')) return;
   try {
-    const seats = await apiFetch('GET', `/seats/${fid}`);
-    if (!seats || seats.length === 0) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No seats found for this flight</td></tr>`; return;
-    }
-    tbody.innerHTML = seats.map(s => `<tr>
-      <td style="font-family:var(--mono)">${esc(s.seatNumber)}</td>
-      <td>${esc(s.seatType)}</td>
-      <td>${s.row ?? '—'}</td>
-      <td>${s.column ?? '—'}</td>
-      <td>₹${s.price ?? '—'}</td>
-      <td>${(s.available === true || s.isAvailable === true)
-        ? '<span class="badge badge-green">Available</span>'
-        : '<span class="badge badge-red">Taken</span>'}</td>
-    </tr>`).join('');
-  } catch (e) { tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Error loading seats</td></tr>`; toast(e.message, 'error'); }
+    await api('PUT', '/api/bookings/' + bookingId + '/cancel');
+    toast('Booking cancelled', 'success');
+    loadMyBookings();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
-// ─── STAFF: FLIGHTS ───
 async function loadStaffFlights() {
-  const tbody = document.getElementById('staff-flights-tbody');
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="8"><span class="dot">Loading</span></td></tr>`;
   try {
-    const flights = await apiFetch('GET', '/flights');
-    if (!flights || flights.length === 0) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="8">No flights. Add one above.</td></tr>`; return;
-    }
-    tbody.innerHTML = flights.map(f => `<tr>
-      <td style="font-family:var(--mono)">${esc(f.flightNumber)}</td>
-      <td>${esc(f.airlineName)}</td>
-      <td>${esc(f.source)} → ${esc(f.destination)}</td>
-      <td style="font-family:var(--mono);font-size:12px">${fmtDt(f.departureTime)}</td>
-      <td>${f.availableSeats ?? '—'} / ${f.totalSeats ?? '—'}</td>
-      <td>₹${f.basePrice ?? '—'}</td>
-      <td>${statusBadge(f.status)}</td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" onclick='openEditFlight(${JSON.stringify(f)})'>Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteFlight('${f.flightId}','${esc(f.flightNumber)}')">Delete</button>
-      </td>
-    </tr>`).join('');
-  } catch (e) { tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Failed to load</td></tr>`; toast(e.message, 'error'); }
+    const flights = await api('GET', '/api/flights');
+    const tbody = document.getElementById('staffFlightsTable');
+    if (!flights.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No flights yet</td></tr>'; return; }
+    tbody.innerHTML = flights.map(f => `
+      <tr>
+        <td><strong>${f.flightNumber || '—'}</strong></td>
+        <td>${f.airlineName || '—'}</td>
+        <td>${f.source || '—'} → ${f.destination || '—'}</td>
+        <td>${fmt(f.departureTime)}</td>
+        <td>${f.availableSeats ?? '—'} / ${f.totalSeats ?? '—'}</td>
+        <td>₹${(f.basePrice || 0).toLocaleString()}</td>
+        <td>${badge(f.status || 'SCHEDULED')}</td>
+        <td><button class="btn danger" style="padding:3px 10px;font-size:12px" onclick="deleteFlight('${f.flightId}')">Delete</button></td>
+      </tr>`).join('');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 async function addFlight() {
-  const num    = document.getElementById('f-num').value.trim();
-  const airline= document.getElementById('f-airline').value.trim();
-  const src    = document.getElementById('f-src').value.trim();
-  const dest   = document.getElementById('f-dest').value.trim();
-  const dep    = document.getElementById('f-dep').value;
-  const arr    = document.getElementById('f-arr').value;
-  const seats  = parseInt(document.getElementById('f-seats').value);
-  const price  = parseFloat(document.getElementById('f-price').value);
-  if (!num||!airline||!src||!dest||!dep||!arr||!seats||!price) { toast('Please fill all flight fields', 'error'); return; }
+  const body = {
+    flightNumber: document.getElementById('fNum').value.trim(),
+    airlineName: document.getElementById('fAirline').value.trim(),
+    source: document.getElementById('fSrc').value.trim(),
+    destination: document.getElementById('fDest').value.trim(),
+    departureTime: document.getElementById('fDep').value,
+    arrivalTime: document.getElementById('fArr').value,
+    basePrice: parseFloat(document.getElementById('fPrice').value) || 0,
+    totalSeats: parseInt(document.getElementById('fTotalSeats').value) || 0,
+    availableSeats: parseInt(document.getElementById('fAvailSeats').value) || 0,
+    status: 'SCHEDULED',
+    type: document.getElementById('fType').value   // ← ADD THIS LINE
+};
+  if (!body.flightNumber || !body.source || !body.destination || !body.departureTime) {
+    toast('Fill in all required fields', 'error'); return;
+  }
   try {
-    await apiFetch('POST', '/flights', {
-      flightNumber: num, airlineName: airline,
-      source: src, destination: dest,
-      departureTime: dep, arrivalTime: arr,
-      totalSeats: seats, availableSeats: seats,
-      basePrice: price, status: 'SCHEDULED'
-    });
+    await api('POST', '/api/flights', body);
     toast('Flight added successfully!', 'success');
-    ['f-num','f-airline','f-src','f-dest','f-dep','f-arr','f-seats','f-price'].forEach(id => { document.getElementById(id).value = ''; });
+    ['fNum','fAirline','fSrc','fDest','fDep','fArr','fPrice','fTotalSeats','fAvailSeats'].forEach(id => document.getElementById(id).value = '');
+    loadStaffFlights();
+    loadDashboard();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteFlight(flightId) {
+  if (!confirm('Delete this flight? This cannot be undone.')) return;
+  try {
+    await api('DELETE', '/api/flights/' + flightId);
+    toast('Flight deleted', 'success');
     loadStaffFlights();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-function openEditFlight(f) {
-  document.getElementById('edit-flight-id').value  = f.flightId;
-  document.getElementById('edit-f-num').value      = f.flightNumber || '';
-  document.getElementById('edit-f-airline').value  = f.airlineName || '';
-  document.getElementById('edit-f-dep').value      = f.departureTime ? f.departureTime.substring(0, 16) : '';
-  document.getElementById('edit-f-price').value    = f.basePrice || '';
-  document.getElementById('modal-edit-flight').classList.add('open');
-}
-
-async function saveFlightEdit() {
-  const id      = document.getElementById('edit-flight-id').value;
-  const num     = document.getElementById('edit-f-num').value.trim();
-  const airline = document.getElementById('edit-f-airline').value.trim();
-  const dep     = document.getElementById('edit-f-dep').value;
-  const price   = parseFloat(document.getElementById('edit-f-price').value);
-  try {
-    await apiFetch('PUT', `/flights/${id}`, { flightNumber: num, airlineName: airline, departureTime: dep, basePrice: price });
-    toast('Flight updated!', 'success');
-    closeModal('modal-edit-flight');
-    loadStaffFlights();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-function deleteFlight(id, num) {
-  confirmAction('DELETE FLIGHT', `Delete flight ${num}? This action cannot be undone.`, async () => {
-    try {
-      await apiFetch('DELETE', `/flights/${id}`, null, true);
-      toast('Flight deleted successfully', 'success');
-      loadStaffFlights();
-    } catch (e) { toast(e.message, 'error'); }
-  });
-}
-
-// ─── ADMIN: REPORTS ───
-async function loadRevenue() {
-  const from = document.getElementById('r-from').value;
-  const to   = document.getElementById('r-to').value;
-  if (!from || !to) { toast('Select both from and to dates', 'error'); return; }
-  if (from > to)    { toast('From date must be before To date', 'error'); return; }
-  const el = document.getElementById('report-result');
-  el.innerHTML = `<div class="loading dot">Generating revenue report</div>`;
-  try {
-    const data = await apiFetch('GET', `/reports/revenue?from=${from}&to=${to}`);
-    const bookings = data.bookings  || [];
-    const payments = data.payments  || [];
-    const total    = data.totalRevenue ?? data.total ?? 0;
-    el.innerHTML = `
-      <div class="stats-row">
-        <div class="stat-card"><div class="stat-label">TOTAL REVENUE</div><div class="stat-value">₹${Number(total).toLocaleString('en-IN')}</div></div>
-        <div class="stat-card"><div class="stat-label">BOOKINGS</div><div class="stat-value">${bookings.length}</div></div>
-        <div class="stat-card"><div class="stat-label">PAYMENTS</div><div class="stat-value">${payments.length}</div></div>
-      </div>
-      <div class="panel">
-        <h3>Bookings in Period</h3>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>PNR</th><th>Flight ID</th><th>Pax</th><th>Amount</th><th>Status</th></tr></thead>
-          <tbody>${bookings.length === 0
-            ? '<tr class="empty-row"><td colspan="5">No bookings in this period</td></tr>'
-            : bookings.map(b => `<tr>
-                <td style="font-family:var(--mono)">${esc(b.pnr)}</td>
-                <td style="font-family:var(--mono);font-size:11px">${esc(b.flightId)}</td>
-                <td>${b.numberOfPassengers ?? 1}</td>
-                <td>₹${b.totalAmount ?? 0}</td>
-                <td>${statusBadge(b.status)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table></div>
-      </div>`;
-  } catch (e) { el.innerHTML = ''; toast(e.message, 'error'); }
-}
-
-async function loadCancellations() {
-  const from = document.getElementById('r-from').value;
-  const to   = document.getElementById('r-to').value;
-  if (!from || !to) { toast('Select both from and to dates', 'error'); return; }
-  const el = document.getElementById('report-result');
-  el.innerHTML = `<div class="loading dot">Generating cancellation report</div>`;
-  try {
-    const data = await apiFetch('GET', `/reports/cancellations?from=${from}&to=${to}`);
-    const cancelled = data.cancelledBookings || data.bookings || [];
-    el.innerHTML = `
-      <div class="stats-row">
-        <div class="stat-card"><div class="stat-label">TOTAL CANCELLATIONS</div><div class="stat-value">${cancelled.length}</div></div>
-      </div>
-      <div class="panel">
-        <h3>Cancelled Bookings</h3>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>PNR</th><th>Flight ID</th><th>Pax</th><th>Booked On</th></tr></thead>
-          <tbody>${cancelled.length === 0
-            ? '<tr class="empty-row"><td colspan="4">No cancellations in this period</td></tr>'
-            : cancelled.map(b => `<tr>
-                <td style="font-family:var(--mono)">${esc(b.pnr)}</td>
-                <td style="font-family:var(--mono);font-size:11px">${esc(b.flightId)}</td>
-                <td>${b.numberOfPassengers ?? 1}</td>
-                <td style="font-size:12px">${fmtDt(b.bookingDate)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table></div>
-      </div>`;
-  } catch (e) { el.innerHTML = ''; toast(e.message, 'error'); }
-}
-
-// ─── ADMIN: USERS ───
 async function loadUsers() {
-  const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = `<tr class="empty-row"><td colspan="5"><span class="dot">Loading</span></td></tr>`;
   try {
-    const users = await apiFetch('GET', '/admin/users');
-    if (!users || users.length === 0) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="5">No users found</td></tr>`; return;
+    const users = await api('GET', '/api/auth/users');
+    const tbody = document.getElementById('usersTable');
+    if (!Array.isArray(users) || !users.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">No users found</td></tr>'; return;
     }
-    tbody.innerHTML = users.map(u => {
-      const active = u.active === true || u.isActive === true;
-      const uid    = u.userId || u.id;
-      return `<tr>
-        <td style="font-family:var(--mono)">${esc(u.username)}</td>
-        <td>${esc(u.email)}</td>
-        <td><span class="badge badge-blue">${esc(u.role)}</span></td>
-        <td>${active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
-        <td><button class="btn ${active ? 'btn-danger' : 'btn-primary'} btn-sm" onclick="toggleUser('${uid}',${!active})">${active ? 'Deactivate' : 'Activate'}</button></td>
-      </tr>`;
-    }).join('');
-  } catch (e) { tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Failed to load users</td></tr>`; toast(e.message, 'error'); }
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td><strong>${u.username || '—'}</strong></td>
+        <td>${u.email || '—'}</td>
+        <td>${badge(u.role)}</td>
+        <td>${u.active ? '<span class="badge confirmed">Active</span>' : '<span class="badge cancelled">Inactive</span>'}</td>
+        <td>
+          <button class="btn secondary" style="padding:3px 10px;font-size:12px" onclick="toggleUser('${u.userId}', ${u.active})">${u.active ? 'Deactivate' : 'Activate'}</button>
+        </td>
+      </tr>`).join('');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
-async function toggleUser(userId, activate) {
+async function toggleUser(userId, isActive) {
   try {
-    await apiFetch('PUT', `/admin/users/${userId}/status`, { active: activate });
-    toast(`User ${activate ? 'activated' : 'deactivated'} successfully`, 'success');
+    await api('PUT', '/api/auth/users/' + userId + '/status?active=' + !isActive);
+    toast('User status updated', 'success');
     loadUsers();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// ─── MODALS ───
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+async function generateReport() {
+  const type = document.getElementById('reportType').value;
+  const from = document.getElementById('reportFrom').value;
+  const to = document.getElementById('reportTo').value;
+  if (!from || !to) { toast('Select a date range', 'error'); return; }
+  try {
+    const data = await api('GET', `/api/reports/${type}?from=${from}&to=${to}`);
+    const card = document.getElementById('reportResultCard');
+    card.style.display = 'block';
+    const metrics = document.getElementById('reportMetrics');
+    const tableWrap = document.getElementById('reportTableWrap');
 
-let _confirmCb = null;
-function confirmAction(title, msg, cb) {
-  document.getElementById('modal-confirm-title').textContent = title;
-  document.getElementById('modal-confirm-msg').textContent   = msg;
-  _confirmCb = cb;
-  document.getElementById('modal-confirm-ok').onclick = () => {
-    closeModal('modal-confirm');
-    if (_confirmCb) _confirmCb();
-  };
-  document.getElementById('modal-confirm').classList.add('open');
+    if (type === 'revenue') {
+      metrics.innerHTML = `
+        <div class="metric"><div class="metric-label">Total revenue</div><div class="metric-value">₹${(data.totalRevenue || 0).toLocaleString()}</div></div>
+        <div class="metric"><div class="metric-label">Total bookings</div><div class="metric-value">${data.totalBookings || 0}</div></div>
+        <div class="metric"><div class="metric-label">Flights operated</div><div class="metric-value">${data.totalFlights || 0}</div></div>`;
+
+      const bookings = data.bookings || [];
+      tableWrap.innerHTML = bookings.length ? `
+        <table><thead><tr><th>PNR</th><th>Flight</th><th>Class</th><th>Pax</th><th>Date</th><th>Status</th></tr></thead>
+        <tbody>${bookings.map(b => `<tr>
+          <td><strong>${b.pnr || '—'}</strong></td>
+          <td>${b.flightId ? b.flightId.substring(0,8) + '...' : '—'}</td>
+          <td>${b.seatType || '—'}</td>
+          <td>${b.numberOfPassengers || 1}</td>
+          <td>${fmtDate(b.bookingDate)}</td>
+          <td>${badge(b.status)}</td>
+        </tr>`).join('')}</tbody></table>` : '<p class="empty">No bookings in this range</p>';
+    } else {
+      const cancelled = data.cancelledBookings || [];
+      metrics.innerHTML = `<div class="metric"><div class="metric-label">Total cancellations</div><div class="metric-value">${data.totalCancellations || 0}</div></div>`;
+      tableWrap.innerHTML = cancelled.length ? `
+        <table><thead><tr><th>PNR</th><th>Flight</th><th>Class</th><th>Date</th></tr></thead>
+        <tbody>${cancelled.map(b => `<tr>
+          <td><strong>${b.pnr || '—'}</strong></td>
+          <td>${b.flightId ? b.flightId.substring(0,8) + '...' : '—'}</td>
+          <td>${b.seatType || '—'}</td>
+          <td>${fmtDate(b.bookingDate)}</td>
+        </tr>`).join('')}</tbody></table>` : '<p class="empty">No cancellations in this range</p>';
+    }
+    card.scrollIntoView({ behavior: 'smooth' });
+    toast('Report generated', 'success');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
-});
-
-// ─── UTILS ───
-function fmtDt(dt) {
-  if (!dt) return '—';
-  try { return new Date(dt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
-  catch { return String(dt); }
-}
-
-function statusBadge(s) {
-  const map = { SCHEDULED:'badge-blue', CONFIRMED:'badge-green', COMPLETED:'badge-gray', DELAYED:'badge-yellow', CANCELLED:'badge-red', PENDING:'badge-yellow', SUCCESS:'badge-green', FAILED:'badge-red', REFUNDED:'badge-gray', ACTIVE:'badge-green', INACTIVE:'badge-red' };
-  return `<span class="badge ${map[s]||'badge-gray'}">${s||'—'}</span>`;
-}
-
-function esc(v) {
-  if (v == null) return '—';
-  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+document.getElementById('searchDate').valueAsDate = new Date();
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('reportFrom').value = today.substring(0, 7) + '-01';
+document.getElementById('reportTo').value = today;
 </script>
 </body>
 </html>

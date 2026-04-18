@@ -7,11 +7,6 @@ import com.airline.system.repository.SeatRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
-/**
- * Owner: Aditi (CS029)
- * SRP: only responsible for seat availability logic.
- * Called by BookingService and SeatAvailabilityObserver.
- */
 @Service
 public class SeatService {
 
@@ -23,6 +18,10 @@ public class SeatService {
         this.flightRepository = flightRepository;
     }
 
+    public List<Seat> getAllSeats(String flightId) {
+        return seatRepository.findByFlightFlightId(flightId);
+    }
+
     public List<Seat> getAvailableSeats(String flightId) {
         return seatRepository.findByFlightFlightIdAndIsAvailableTrue(flightId);
     }
@@ -32,28 +31,22 @@ public class SeatService {
     }
 
     public boolean hasAvailableSeats(String flightId, int requiredCount) {
-        List<Seat> availableSeats = seatRepository.findByFlightFlightIdAndIsAvailableTrue(flightId);
-        if (!availableSeats.isEmpty()) {
-            return availableSeats.size() >= requiredCount;
-        }
-        // Fallback: use flight-level counter for simple demo flow
         return flightRepository.findById(flightId)
             .map(f -> f.getAvailableSeats() >= requiredCount)
             .orElse(false);
     }
 
     public void decrementAvailableSeats(String flightId, int count) {
-        flightRepository.findById(flightId).ifPresent(flight -> {
-            flight.setAvailableSeats(flight.getAvailableSeats() - count);
-            flightRepository.save(flight);
+        flightRepository.findById(flightId).ifPresent(f -> {
+            f.setAvailableSeats(Math.max(0, f.getAvailableSeats() - count));
+            flightRepository.save(f);
         });
     }
 
     public void incrementAvailableSeats(String flightId, int count) {
-        flightRepository.findById(flightId).ifPresent(flight -> {
-            flight.setAvailableSeats(flight.getAvailableSeats() + count);
-            flightRepository.save(flight);
+        flightRepository.findById(flightId).ifPresent(f -> {
+            f.setAvailableSeats(f.getAvailableSeats() + count);
+            flightRepository.save(f);
         });
     }
-    
 }

@@ -6,48 +6,66 @@ import com.airline.system.service.UserService;
 import lombok.Data;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Owner: Pranav (CS002)
- * Handles /api/auth/register and /api/auth/login.
- * TODO (Pranav): Add JWT token generation on login.
- */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
     private final UserService userService;
-
-    public AuthController(UserService userService) {
-        this.userService = userService;
-    }
+    public AuthController(UserService userService) { this.userService = userService; }
 
     @PostMapping("/register")
-    public ResponseEntity<User> register(@RequestBody RegisterRequest req) {
-        User user = userService.registerUser(
-            req.getRole(), req.getUsername(), req.getEmail(), req.getPassword());
-        return ResponseEntity.ok(user);
+    public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
+        try {
+            User user = userService.registerUser(
+                req.getRole(), req.getUsername(), req.getEmail(),
+                req.getPassword(), req.getPhone());
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            // Return 409 Conflict with the error message so frontend can show alert
+            return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequest req) {
-        // TODO (Pranav): validate credentials and return JWT token
-        User user = userService.findByUsername(req.getUsername());
-        return ResponseEntity.ok("Login successful for: " + user.getUsername()
-            + " | Role: " + user.getRole());
+    public ResponseEntity<?> login(@RequestBody LoginRequest req) {
+        try {
+            User user = userService.findByUsernameAndRole(req.getUsername(), req.getRole());
+            return ResponseEntity.ok(new LoginResponse(
+                user.getUserId(), user.getUsername(),
+                user.getRole().toString(), user.getEmail()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+        }
     }
 
-    @Data
-    static class RegisterRequest {
-        private String username;
-        private String email;
-        private String password;
+    @GetMapping("/users")
+    public ResponseEntity<List<User>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
+    }
+
+    @PutMapping("/users/{id}/status")
+    public ResponseEntity<String> setStatus(@PathVariable String id,
+                                             @RequestParam boolean active) {
+        userService.setUserActive(id, active);
+        return ResponseEntity.ok("Status updated");
+    }
+
+    @Data static class RegisterRequest {
+        private String username, email, password, phone;
         private UserRole role;
     }
-
-    @Data
-    static class LoginRequest {
-        private String username;
-        private String password;
+    @Data static class LoginRequest {
+        private String username, password;
+        private UserRole role;
+    }
+    @Data static class LoginResponse {
+        private String userId, username, role, email;
+        public LoginResponse(String userId, String username, String role, String email) {
+            this.userId = userId; this.username = username;
+            this.role = role; this.email = email;
+        }
     }
 }

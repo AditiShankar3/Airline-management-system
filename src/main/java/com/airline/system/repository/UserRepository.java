@@ -10,7 +10,10 @@ import java.util.Optional;
 /** Owner: Pranav (CS002) */
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
-    Optional<User> findByUsername(String username);
+    Optional<User> findByUsernameAndRole(String username, UserRole role);
+    // For duplicate-email check across ALL roles
     Optional<User> findByEmail(String email);
+    // For duplicate username+role check at registration
+    boolean existsByUsernameAndRole(String username, UserRole role);
     List<User> findByRole(UserRole role);
 }

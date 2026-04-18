@@ -4,7 +4,6 @@ import com.airline.system.enums.SeatType;
 import com.airline.system.model.Seat;
 import com.airline.system.service.SeatService;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 /** Owner: Aditi (CS029) */
@@ -13,11 +12,15 @@ import java.util.List;
 public class SeatController {
 
     private final SeatService seatService;
+    public SeatController(SeatService seatService) { this.seatService = seatService; }
 
-    public SeatController(SeatService seatService) {
-        this.seatService = seatService;
+    /** All seats for a flight (available + taken) — used by seat map */
+    @GetMapping("/{flightId}/all")
+    public List<Seat> getAllSeats(@PathVariable String flightId) {
+        return seatService.getAllSeats(flightId);
     }
 
+    /** Available seats only */
     @GetMapping("/{flightId}")
     public List<Seat> getAvailableSeats(@PathVariable String flightId) {
         return seatService.getAvailableSeats(flightId);
