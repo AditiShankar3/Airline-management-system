@@ -49,19 +49,27 @@ public class BookingService {
     public Booking createBooking(String flightId, String passengerId,
                                   SeatType seatType, int count,
                                   List<String> seatIds) {
+        // 1. Validate seat availability
         if (!seatService.hasAvailableSeats(flightId, count))
             throw new RuntimeException("Not enough seats available");
 
+        // 2. Fetch flight to get base price
+        Flight flight = flightRepository.findById(flightId)
+            .orElseThrow(() -> new RuntimeException("Flight not found"));
+
+        // 3. Build booking with total amount calculated
         Booking booking = new BookingBuilder()
             .withFlight(flightId)
             .withPassenger(passengerId)
             .withSeatType(seatType)
             .withPassengerCount(count)
             .build();
+        booking.setTotalAmount(flight.getBasePrice() * count);
 
+        // 4. Save the booking first (to generate ID)
         Booking saved = bookingRepository.save(booking);
 
-        // Mark chosen seats as unavailable
+        // 5. Mark chosen seats as unavailable
         List<String> assignedNums = new ArrayList<>();
         if (seatIds != null && !seatIds.isEmpty()) {
             for (String seatId : seatIds) {
@@ -83,10 +91,12 @@ public class BookingService {
             }
         }
 
-        // Decrement flight-level counter
+        // 6. Decrement flight-level available seat counter
         seatService.decrementAvailableSeats(flightId, count);
 
+        // 7. Notify observers (after everything is persisted)
         observers.forEach(o -> o.onBookingConfirmed(saved));
+
         return saved;
     }
 

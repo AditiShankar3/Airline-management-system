@@ -379,10 +379,11 @@
 
     <input type="hidden" id="payBookingId" />
 
-    <div class="field" style="margin-bottom:12px;">
-      <label>Amount (₹)</label>
-      <input type="number" id="payAmount" placeholder="Enter amount" min="0" />
+    <div style="background:#eaf3de; border-radius:8px; padding:12px; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:13px; color:#3b6d11; font-weight:500;">Total amount</span>
+      <span style="font-size:20px; font-weight:500; color:#3b6d11;" id="payTotalDisplay">₹0</span>
     </div>
+    <input type="hidden" id="payAmount" />
 
     <div class="field" style="margin-bottom:16px;">
       <label>Payment method</label>
@@ -644,12 +645,13 @@ function renderSearchResults(flights) {
       <td>${fmt(f.departureTime)}</td>
       <td>${f.availableSeats ?? '—'}</td>
       <td>₹${(f.basePrice || 0).toLocaleString()}</td>
-      <td><button class="btn" style="padding:4px 12px;font-size:12px" onclick="openBookForm('${f.flightId}','${f.flightNumber} ${f.source}→${f.destination}')">Book</button></td>
+      <td><button class="btn" style="padding:4px 12px;font-size:12px" onclick="openBookForm('${f.flightId}','${f.flightNumber} ${f.source}→${f.destination}',${f.basePrice})">Book</button></td>
     </tr>`).join('');
 }
 
-function openBookForm(flightId, label) {
+function openBookForm(flightId, label, price) {
   bookingFlightId = flightId;
+  bookingFlightPrice = parseFloat(price) || 0;
   selectedSeatIds = [];
   document.getElementById('bookFlightLabel').textContent = label;
   document.getElementById('bookFormCard').style.display = 'block';
@@ -676,7 +678,10 @@ function updateSeatSelectionLimit() {
 function openPaymentModal(booking) {
   document.getElementById('payBookingId').value = booking.bookingId;
   document.getElementById('payPnr').textContent = booking.pnr;
-  document.getElementById('payAmount').value = booking.totalAmount || '';
+  // Use totalAmount from backend, fallback to calculating it client-side
+  const total = booking.totalAmount || (bookingFlightPrice * (booking.numberOfPassengers || 1));
+  document.getElementById('payAmount').value = total;
+  document.getElementById('payTotalDisplay').textContent = '₹' + total.toLocaleString('en-IN');
   document.getElementById('paymentModal').style.display = 'flex';
 }
 
@@ -693,7 +698,20 @@ async function processPayment() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-function closePaymentModal() {
+async function closePaymentModal() {
+  const bookingId = document.getElementById('payBookingId').value;
+  if (bookingId) {
+    const shouldCancel = confirm('You haven\'t paid yet. Do you want to cancel this booking?');
+    if (shouldCancel) {
+      try {
+        await api('PUT', '/api/bookings/' + bookingId + '/cancel');
+        toast('Booking cancelled.', 'success');
+        loadMyBookings();
+        loadDashboard();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+    // either way, close the modal
+  }
   document.getElementById('paymentModal').style.display = 'none';
 }
 
@@ -912,7 +930,11 @@ async function cancelBooking(bookingId) {
   try {
     await api('PUT', '/api/bookings/' + bookingId + '/cancel');
     toast('Booking cancelled', 'success');
-    loadMyBookings();
+    // Small delay to let DB commit, then refresh
+    setTimeout(() => {
+      loadMyBookings();
+      loadDashboard();
+    }, 300);
   } catch (e) { toast(e.message, 'error'); }
 }
 
