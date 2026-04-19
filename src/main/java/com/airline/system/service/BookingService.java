@@ -172,4 +172,8 @@ public class BookingService {
             .filter(b -> b.getStatus() == BookingStatus.CANCELLED)
             .toList();
     }
+    public Booking getBookingById(String bookingId) {
+        return bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new RuntimeException("Booking not found"));
+    }
 }

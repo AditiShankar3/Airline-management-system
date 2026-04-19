@@ -679,12 +679,30 @@ function openPaymentModal(booking) {
   document.getElementById('payBookingId').value = booking.bookingId;
   document.getElementById('payPnr').textContent = booking.pnr;
   // Use totalAmount from backend, fallback to calculating it client-side
-  const total = booking.totalAmount || (bookingFlightPrice * (booking.numberOfPassengers || 1));
+  let total = booking.totalAmount;
+  if (!total && typeof bookingFlightPrice !== 'undefined') {
+    total = bookingFlightPrice * (booking.numberOfPassengers || 1);
+  }
+  if (!total) {
+    toast('Could not determine payment amount', 'error');
+    return;
+  }
   document.getElementById('payAmount').value = total;
   document.getElementById('payTotalDisplay').textContent = '₹' + total.toLocaleString('en-IN');
   document.getElementById('paymentModal').style.display = 'flex';
 }
-
+async function openPaymentForBooking(bookingId) {
+  try {
+    const booking = await api('GET', '/api/bookings/' + bookingId); // assumes an endpoint exists to get a single booking
+    if (!booking) {
+      toast('Booking not found', 'error');
+      return;
+    }
+    openPaymentModal(booking);
+  } catch (e) {
+    toast('Could not load booking details: ' + e.message, 'error');
+  }
+}
 async function processPayment() {
   const bookingId = document.getElementById('payBookingId').value;
   const amount = parseFloat(document.getElementById('payAmount').value) || 0;
@@ -924,7 +942,14 @@ async function loadMyBookings() {
         <td>${b.seatType || '—'}</td>
         <td style="font-size:12px">${b.seatNumbers && b.seatNumbers.length ? b.seatNumbers.join(', ') : `${b.numberOfPassengers} pax`}</td>
         <td>${badge(b.status)}</td>
-        <td>${b.status !== 'CANCELLED' ? `<button class="btn danger" style="padding:3px 10px;font-size:12px" onclick="cancelBooking('${b.bookingId}')">Cancel</button>` : '—'}</td>
+        <td>
+          ${b.status === 'PENDING' 
+            ? `<button class="btn success" style="padding:3px 10px;font-size:12px" onclick="openPaymentForBooking('${b.bookingId}','${b.pnr}','${b.numberOfPassengers}','${b.seatType}')">Pay</button>`
+            : (b.status !== 'CANCELLED' 
+              ? `<button class="btn danger" style="padding:3px 10px;font-size:12px" onclick="cancelBooking('${b.bookingId}')">Cancel</button>` 
+              : '—')
+          }
+        </td>
       </tr>`).join('');
   } catch (e) { toast(e.message, 'error'); }
 }

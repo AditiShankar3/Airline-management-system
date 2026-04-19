@@ -47,4 +47,8 @@ public class BookingController {
         bookingService.cancelBooking(bookingId);
         return ResponseEntity.ok("Booking cancelled. Refund initiated.");
     }
+    @GetMapping("/{bookingId}")
+    public ResponseEntity<Booking> getBooking(@PathVariable String bookingId) {
+        return ResponseEntity.ok(bookingService.getBookingById(bookingId));
+    }
 }
