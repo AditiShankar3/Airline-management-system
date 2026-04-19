@@ -53,5 +53,10 @@ public class FlightController {
         flightService.deleteFlight(id);
         return ResponseEntity.ok("Flight deleted");
     }
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Flight> updateFlightStatus(@PathVariable String id,
+                                                    @RequestParam String status) {
+        return ResponseEntity.ok(flightService.updateFlightStatus(id, status));
+    }
 }
 

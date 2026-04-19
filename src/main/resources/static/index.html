@@ -694,7 +694,11 @@ async function processPayment() {
     const payment = await api('POST', '/api/payments', { bookingId, amount, paymentMethod: method });
     toast('Payment successful! Transaction ID: ' + payment.transactionId, 'success');
     document.getElementById('paymentModal').style.display = 'none';
-    loadMyBookings();
+    // ✅ Refresh with small delay so DB commit propagates
+    setTimeout(() => {
+      loadMyBookings();
+      loadDashboard();
+    }, 300);
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -944,16 +948,35 @@ async function loadStaffFlights() {
     const tbody = document.getElementById('staffFlightsTable');
     if (!flights.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No flights yet</td></tr>'; return; }
     tbody.innerHTML = flights.map(f => `
-      <tr>
-        <td><strong>${f.flightNumber || '—'}</strong></td>
-        <td>${f.airlineName || '—'}</td>
-        <td>${f.source || '—'} → ${f.destination || '—'}</td>
-        <td>${fmt(f.departureTime)}</td>
-        <td>${f.availableSeats ?? '—'} / ${f.totalSeats ?? '—'}</td>
-        <td>₹${(f.basePrice || 0).toLocaleString()}</td>
-        <td>${badge(f.status || 'SCHEDULED')}</td>
-        <td><button class="btn danger" style="padding:3px 10px;font-size:12px" onclick="deleteFlight('${f.flightId}')">Delete</button></td>
-      </tr>`).join('');
+  <tr>
+    <td><strong>${f.flightNumber || '—'}</strong></td>
+    <td>${f.airlineName || '—'}</td>
+    <td>${f.source || '—'} → ${f.destination || '—'}</td>
+    <td>${fmt(f.departureTime)}</td>
+    <td>${f.availableSeats ?? '—'} / ${f.totalSeats ?? '—'}</td>
+    <td>₹${(f.basePrice || 0).toLocaleString()}</td>
+    <td>${badge(f.status || 'SCHEDULED')}</td>
+    <td style="display:flex;gap:6px;align-items:center;">
+      <select id="status-${f.flightId}" style="padding:3px 6px;font-size:12px;border-radius:6px;border:0.5px solid #ddd;">
+        <option value="SCHEDULED"  ${f.status==='SCHEDULED'  ? 'selected':''}>Scheduled</option>
+        <option value="DELAYED"    ${f.status==='DELAYED'    ? 'selected':''}>Delayed</option>
+        <option value="CANCELLED"  ${f.status==='CANCELLED'  ? 'selected':''}>Cancelled</option>
+        <option value="COMPLETED"  ${f.status==='COMPLETED'  ? 'selected':''}>Completed</option>
+      </select>
+      <button class="btn secondary" style="padding:3px 10px;font-size:12px" onclick="updateFlightStatus('${f.flightId}')">Update</button>
+      <button class="btn danger"    style="padding:3px 10px;font-size:12px" onclick="deleteFlight('${f.flightId}')">Delete</button>
+    </td>
+  </tr>`).join('');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function updateFlightStatus(flightId) {
+  const status = document.getElementById('status-' + flightId).value;
+  try {
+    await api('PUT', '/api/flights/' + flightId + '/status?status=' + status);
+    toast('Flight status updated to ' + status, 'success');
+    loadStaffFlights();
+    loadDashboard();
   } catch (e) { toast(e.message, 'error'); }
 }
 

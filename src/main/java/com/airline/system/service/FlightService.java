@@ -1,6 +1,7 @@
 package com.airline.system.service;
 
 import com.airline.system.enums.BookingStatus;
+import com.airline.system.enums.FlightStatus;
 import com.airline.system.enums.SeatType;
 import com.airline.system.model.Booking;
 import com.airline.system.model.Flight;
@@ -125,4 +126,14 @@ public class FlightService {
                 && !f.getDepartureTime().toLocalDate().isAfter(to))
             .toList();
     }
+    public Flight updateFlightStatus(String flightId, String status) {
+    Flight f = flightRepository.findById(flightId)
+        .orElseThrow(() -> new RuntimeException("Flight not found"));
+    try {
+        f.setStatus(FlightStatus.valueOf(status.toUpperCase()));
+    } catch (IllegalArgumentException e) {
+        throw new RuntimeException("Invalid status. Use: SCHEDULED, DELAYED, CANCELLED, COMPLETED");
+    }
+    return flightRepository.save(f);
+}
 }
