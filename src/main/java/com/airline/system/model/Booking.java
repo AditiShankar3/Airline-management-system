@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Owner: Aditi (CS029) */
@@ -35,4 +36,11 @@ public class Booking {
     @JsonIgnore
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL)
     private List<Ticket> tickets;
+
+    // The exact Seat IDs assigned to this booking, so cancellation can release
+    // precisely these seats instead of only decrementing the flight-level counter.
+    @ElementCollection
+    @CollectionTable(name = "booking_seat_ids", joinColumns = @JoinColumn(name = "booking_id"))
+    @Column(name = "seat_id")
+    private List<String> seatIds = new ArrayList<>();
 }

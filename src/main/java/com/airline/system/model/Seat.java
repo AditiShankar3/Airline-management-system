@@ -27,6 +27,12 @@ public class Seat {
 
     private double price;
 
+    // Optimistic locking: Hibernate rejects a concurrent write to a seat whose
+    // version has changed since it was read, instead of silently allowing a
+    // double booking (check-then-act race condition).
+    @Version
+    private Long version;
+
     @ManyToOne
     @JoinColumn(name = "flight_id")
     private Flight flight;

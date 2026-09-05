@@ -9,6 +9,7 @@ import com.airline.system.repository.BookingRepository;
 import com.airline.system.repository.FlightRepository;
 import com.airline.system.repository.SeatRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -46,6 +47,11 @@ public class BookingService {
      * seatIds: specific seat IDs the passenger selected (from /api/seats/{flightId}).
      *          If empty/null, falls back to auto-assigning first available seats.
      */
+    // @Transactional: the booking insert, every seat write, and the observer-driven
+    // flight-counter update all commit as one atomic unit. If anything after the
+    // booking save throws (e.g. a seat was taken between the availability check and
+    // here), the whole operation rolls back instead of leaving a half-booked state.
+    @Transactional
     public Booking createBooking(String flightId, String passengerId,
                                   SeatType seatType, int count,
                                   List<String> seatIds) {
@@ -69,14 +75,22 @@ public class BookingService {
         // 4. Save the booking first (to generate ID)
         Booking saved = bookingRepository.save(booking);
 
-        // 5. Mark chosen seats as unavailable
+        // 5. Mark chosen seats as unavailable, remembering exactly which seats
+        //    this booking holds (needed so cancellation can release the same
+        //    seats instead of only touching the flight-level counter).
+        // Each seat carries a @Version column, so if two requests race for the
+        // same seat, the second save() here throws OptimisticLockingFailureException
+        // instead of both silently succeeding — that's what closes the double-booking
+        // race condition (previously a check-then-act with no protection at all).
         List<String> assignedNums = new ArrayList<>();
+        List<String> assignedSeatIds = new ArrayList<>();
         if (seatIds != null && !seatIds.isEmpty()) {
             for (String seatId : seatIds) {
                 seatRepository.findById(seatId).ifPresent(seat -> {
                     seat.setAvailable(false);
                     seatRepository.save(seat);
                     assignedNums.add(seat.getSeatNumber());
+                    assignedSeatIds.add(seat.getSeatId());
                 });
             }
         } else {
@@ -88,29 +102,41 @@ public class BookingService {
                 seat.setAvailable(false);
                 seatRepository.save(seat);
                 assignedNums.add(seat.getSeatNumber());
+                assignedSeatIds.add(seat.getSeatId());
             }
         }
+        saved.setSeatIds(assignedSeatIds);
+        Booking finalBooking = bookingRepository.save(saved);
 
-        // 6. Decrement flight-level available seat counter
-        seatService.decrementAvailableSeats(flightId, count);
+        // 6. Notify observers. SeatAvailabilityObserver owns the flight-level
+        //    seat-count decrement — it used to also be decremented directly here,
+        //    which silently drained the counter twice per booking. The counter now
+        //    has exactly one owner.
+        observers.forEach(o -> o.onBookingConfirmed(finalBooking));
 
-        // 7. Notify observers (after everything is persisted)
-        observers.forEach(o -> o.onBookingConfirmed(saved));
-
-        return saved;
+        return finalBooking;
     }
 
+    @Transactional
     public void cancelBooking(String bookingId) {
         Booking b = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new RuntimeException("Booking not found"));
         b.setStatus(BookingStatus.CANCELLED);
 
-        // Re-open the seats so others can book them
-        // (seats linked to this booking via ticket seatNumbers — use flightId + seatNumber lookup)
-        // Simple approach: increment flight counter back
-        seatService.incrementAvailableSeats(b.getFlightId(), b.getNumberOfPassengers());
+        // Release the exact seats this booking held (previously only the
+        // flight-level counter was restored, leaving these specific seats
+        // permanently marked unavailable even though the booking was cancelled).
+        if (b.getSeatIds() != null) {
+            for (String seatId : b.getSeatIds()) {
+                seatRepository.findById(seatId).ifPresent(seat -> {
+                    seat.setAvailable(true);
+                    seatRepository.save(seat);
+                });
+            }
+        }
 
         Booking saved = bookingRepository.save(b);
+        // Flight-level counter restore is owned solely by the observer (see note above).
         observers.forEach(o -> o.onBookingCancelled(saved));
     }
 
