@@ -10,6 +10,7 @@ import com.airline.system.repository.FlightRepository;
 import com.airline.system.repository.SeatRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -49,9 +50,14 @@ public class BookingService {
      */
     // @Transactional: the booking insert, every seat write, and the observer-driven
     // flight-counter update all commit as one atomic unit. If anything after the
-    // booking save throws (e.g. a seat was taken between the availability check and
-    // here), the whole operation rolls back instead of leaving a half-booked state.
-    @Transactional
+    // booking save throws, the whole operation rolls back instead of leaving a
+    // half-booked state.
+    //
+    // rollbackFor = Exception.class: Spring's default only rolls back on
+    // RuntimeException/Error. A checked exception (e.g. IOException from mail)
+    // would NOT trigger rollback without this — the DB write would persist even
+    // though the operation "failed". Explicit rollbackFor covers everything.
+    @Transactional(rollbackFor = Exception.class)
     public Booking createBooking(String flightId, String passengerId,
                                   SeatType seatType, int count,
                                   List<String> seatIds) {
@@ -94,13 +100,24 @@ public class BookingService {
                 });
             }
         } else {
-            // Auto-assign: pick first N available seats of the right type
+            // Auto-assign: use the LOCKED query so that the SELECT and the subsequent
+            // UPDATE happen inside the same exclusive lock window.
+            // findAvailableSeatsWithLock issues SELECT ... FOR UPDATE — Thread B
+            // blocks at the DB level until Thread A's transaction commits/rolls back,
+            // making it impossible for both to "win" the last-seat race.
             List<Seat> autoSeats = seatRepository
-                .findByFlightFlightIdAndSeatTypeAndIsAvailableTrue(flightId, seatType)
+                .findAvailableSeatsWithLock(flightId, seatType)
                 .stream().limit(count).toList();
+
+            // Re-validate under the lock: the count could have dropped between
+            // the initial hasAvailableSeats() call and acquiring the lock.
+            if (autoSeats.size() < count)
+                throw new com.airline.system.exception.SeatUnavailableException(
+                    flightId, count, autoSeats.size());
+
             for (Seat seat : autoSeats) {
                 seat.setAvailable(false);
-                seatRepository.save(seat);
+                seatRepository.save(seat);   // @Version increments — second concurrent save throws OptimisticLockingFailureException
                 assignedNums.add(seat.getSeatNumber());
                 assignedSeatIds.add(seat.getSeatId());
             }
@@ -117,7 +134,7 @@ public class BookingService {
         return finalBooking;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void cancelBooking(String bookingId) {
         Booking b = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new RuntimeException("Booking not found"));

@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Owner: Aditi (CS029) */
 @Entity
 @Data
 public class Booking {

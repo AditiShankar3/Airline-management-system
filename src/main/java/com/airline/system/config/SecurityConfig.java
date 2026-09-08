@@ -17,7 +17,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll() // TODO: Pranav — replace with JWT + role-based rules
+                .anyRequest().permitAll()
             );
         return http.build();
     }

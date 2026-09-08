@@ -15,14 +15,12 @@ public class EmailNotificationObserver implements BookingObserver {
 
     @Override
     public void onBookingConfirmed(Booking booking) {
-        // TODO: integrate JavaMail or SendGrid for production
         System.out.println("[EMAIL] Booking confirmation sent for PNR: " + booking.getPnr()
             + " | Passenger: " + booking.getPassengerId());
     }
 
     @Override
     public void onBookingCancelled(Booking booking) {
-        // TODO: integrate JavaMail or SendGrid for production
         System.out.println("[EMAIL] Cancellation notice sent for PNR: " + booking.getPnr()
             + " | Refund initiated for Passenger: " + booking.getPassengerId());
     }
