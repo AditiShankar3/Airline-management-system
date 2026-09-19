@@ -1,6 +1,7 @@
 package com.airline.system.service;
 
 import com.airline.system.enums.BookingStatus;
+import com.airline.system.enums.FlightStatus;
 import com.airline.system.enums.SeatType;
 import com.airline.system.model.*;
 import com.airline.system.patterns.BookingBuilder;
@@ -61,15 +62,20 @@ public class BookingService {
     public Booking createBooking(String flightId, String passengerId,
                                   SeatType seatType, int count,
                                   List<String> seatIds) {
-        // 1. Validate seat availability
-        if (!seatService.hasAvailableSeats(flightId, count))
-            throw new RuntimeException("Not enough seats available");
-
-        // 2. Fetch flight to get base price
+        // 1. Fetch flight (needed for status check and base price)
         Flight flight = flightRepository.findById(flightId)
             .orElseThrow(() -> new RuntimeException("Flight not found"));
 
-        // 3. Build booking with total amount calculated
+        // 2. Reject bookings on flights that can no longer be flown
+        if (flight.getStatus() == FlightStatus.CANCELLED
+                || flight.getStatus() == FlightStatus.COMPLETED)
+            throw new RuntimeException("Flight is " + flight.getStatus() + " and cannot be booked");
+
+        // 3. Validate seat availability
+        if (!seatService.hasAvailableSeats(flightId, count))
+            throw new RuntimeException("Not enough seats available");
+
+        // 4. Build booking with total amount calculated
         Booking booking = new BookingBuilder()
             .withFlight(flightId)
             .withPassenger(passengerId)
