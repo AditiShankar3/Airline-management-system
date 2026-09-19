@@ -12,6 +12,7 @@ import com.airline.system.repository.BookingRepository;
 import com.airline.system.repository.FlightRepository;
 import com.airline.system.repository.SeatRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,13 +24,16 @@ public class FlightService {
     private final FlightRepository flightRepository;
     private final BookingRepository bookingRepository;
     private final SeatRepository seatRepository;
+    private final BookingService bookingService;
 
     public FlightService(FlightRepository flightRepository,
                          BookingRepository bookingRepository,
-                         SeatRepository seatRepository) {
+                         SeatRepository seatRepository,
+                         BookingService bookingService) {
         this.flightRepository = flightRepository;
         this.bookingRepository = bookingRepository;
         this.seatRepository = seatRepository;
+        this.bookingService = bookingService;
     }
 
     /**
@@ -126,14 +130,34 @@ public class FlightService {
                 && !f.getDepartureTime().toLocalDate().isAfter(to))
             .toList();
     }
+    /**
+     * Updates flight status. Cancelling a flight cascades: every active booking
+     * on it goes through BookingService.cancelBooking, so seats and the flight
+     * counter are released and observers (email) fire, exactly as for a
+     * passenger-initiated cancellation.
+     */
+    @Transactional(rollbackFor = Exception.class)
     public Flight updateFlightStatus(String flightId, String status) {
-    Flight f = flightRepository.findById(flightId)
-        .orElseThrow(() -> new RuntimeException("Flight not found"));
-    try {
-        f.setStatus(FlightStatus.valueOf(status.toUpperCase()));
-    } catch (IllegalArgumentException e) {
-        throw new RuntimeException("Invalid status. Use: SCHEDULED, DELAYED, CANCELLED, COMPLETED");
+        Flight f = flightRepository.findById(flightId)
+            .orElseThrow(() -> new RuntimeException("Flight not found"));
+        FlightStatus newStatus;
+        try {
+            newStatus = FlightStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid status. Use: SCHEDULED, DELAYED, CANCELLED, COMPLETED");
+        }
+        boolean newlyCancelled = newStatus == FlightStatus.CANCELLED
+            && f.getStatus() != FlightStatus.CANCELLED;
+        f.setStatus(newStatus);
+        Flight saved = flightRepository.save(f);
+
+        if (newlyCancelled) {
+            for (Booking b : bookingRepository.findByFlightId(flightId)) {
+                if (b.getStatus() != BookingStatus.CANCELLED) {
+                    bookingService.cancelBooking(b.getBookingId());
+                }
+            }
+        }
+        return saved;
     }
-    return flightRepository.save(f);
-}
 }
